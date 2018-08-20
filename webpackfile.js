@@ -36,4 +36,5 @@ module.exports = [
     makeConfig({libName: 'P2pMediaLoaderCore', entry: './core/lib/index', mode: 'development'}),
     makeConfig({libName: 'P2pMediaLoaderHlsjs', entry: './plugins/hlsjs/lib/index', mode: 'development'}),
     makeConfig({libName: 'P2pMediaLoaderShaka', entry: './plugins/shaka/lib/index', mode: 'development'}),
+    makeConfig({libName: 'P2pMediaLoaderVirtualEngine', entry: './plugins/virtual-engine/index', mode: 'development'}),
 ];
