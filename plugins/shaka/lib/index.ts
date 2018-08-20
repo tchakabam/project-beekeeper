@@ -14,5 +14,7 @@
  * limitations under the License.
  */
 
+declare var __VERSION__: any;
+
 export {Engine} from "./engine";
-export const version = "__VERSION__";
+export const version = __VERSION__;

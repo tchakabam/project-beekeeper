@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+declare var __VERSION__: any;
+
 import {Engine} from "./engine";
 
 export function initHlsJsPlayer(player: any): void {
@@ -74,7 +76,7 @@ export function initJwPlayer(player: any, hlsjsConfig: any): void {
 }
 
 export { Engine };
-export const version = "__VERSION__";
+export const version = __VERSION__;
 
 function initHlsJsEvents(player: any, engine: Engine): void {
     player.on("hlsFragChanged", function (event_unused: any, data: any) {

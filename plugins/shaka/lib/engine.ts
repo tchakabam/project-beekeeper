@@ -15,7 +15,7 @@
  */
 
 import {EventEmitter} from "events";
-import {Events, LoaderInterface, HybridLoader} from "../../../core/lib/index";
+import {Events, LoaderInterface, HybridLoader} from "../../../core/lib";
 import {SegmentManager} from "./segment-manager";
 import * as integration from "./integration";
 
