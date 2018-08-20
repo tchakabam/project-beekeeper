@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-import {Events, Segment, LoaderInterface} from "../../../core/lib/index";
+/// <reference path="../../decl/m3u8-parser.d.ts" />
+
+import {Events, Segment, LoaderInterface} from "../../core/lib";
 import Utils from "./utils";
 import {Parser} from "m3u8-parser";
 

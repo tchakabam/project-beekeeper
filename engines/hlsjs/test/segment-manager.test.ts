@@ -16,7 +16,7 @@
 
 /// <reference path="../../../node_modules/@types/mocha/index.d.ts" />
 /// <reference path="../../../node_modules/@types/sinon/index.d.ts" />
-/// <reference path="../lib/declarations.d.ts" />
+/// <reference path="../../../decl/m3u8-parser.d.ts" />
 
 import * as sinon from "sinon";
 import { mock, instance, when, anyFunction } from "ts-mockito";

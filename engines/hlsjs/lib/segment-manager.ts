@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-import {Events, Segment, LoaderInterface} from "../../core/lib";
-import Utils from "../common-utils";
+/// <reference path="../../../decl/m3u8-parser.d.ts" />
+
+import {Events, Segment, LoaderInterface} from "../../../core/lib/index";
+import Utils from "./utils";
 import {Parser} from "m3u8-parser";
 
 const defaultSettings: Settings = {
