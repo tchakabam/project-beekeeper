@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import { LoaderInterface, HybridLoader, Events } from "../../core/lib";
+import { SegmentManager } from "./segment-manager";
 
 export class Engine extends EventEmitter {
 
@@ -14,6 +15,7 @@ export class Engine extends EventEmitter {
         super();
 
         this.loader = new HybridLoader(settings.loader);
+        this.segmentManager = new SegmentManager(this.loader);
 
         Object.keys(Events)
             .map(eventKey => Events[eventKey as any])
