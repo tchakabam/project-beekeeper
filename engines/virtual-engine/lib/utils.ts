@@ -16,7 +16,7 @@
 
 export default class Utils {
 
-    public static async fetchContentAsAny(url: string, responseType: XMLHttpRequestResponseType): Promise<any> {
+    public static fetchContentAsAny(url: string, responseType: XMLHttpRequestResponseType): Promise<any> {
         return new Promise<string>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("GET", url, true);
@@ -35,11 +35,11 @@ export default class Utils {
         });
     }
 
-    public static async fetchContentAsText(url: string): Promise<string> {
+    public static fetchContentAsText(url: string): Promise<string> {
         return Utils.fetchContentAsAny(url, "text");
     }
 
-    public static async fetchContentAsArrayBuffer(url: string): Promise<ArrayBuffer> {
+    public static fetchContentAsArrayBuffer(url: string): Promise<ArrayBuffer> {
         return Utils.fetchContentAsAny(url, "arraybuffer");
     }
 

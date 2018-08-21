@@ -22,13 +22,15 @@ import {Parser} from "m3u8-parser";
 import {Events, Segment, LoaderInterface} from "../../../core/lib";
 import Utils from "./utils";
 
-//const debug = Debug("p2pml:http-media-manager");
+import * as Debug from "debug";
+
+const debug = Debug("p2pml:virtual:segment-manager");
 
 const defaultSettings: Settings = {
     forwardSegmentCount: 20
 };
 
-export class SegmentManager {
+export class HlsAccessProxy {
 
     private loader: LoaderInterface;
     private masterPlaylist: Playlist | null = null;
@@ -38,6 +40,9 @@ export class SegmentManager {
     private readonly settings: Settings;
 
     public constructor(loader: LoaderInterface, settings: any = {}) {
+
+        debug("created SegmentManager")
+
         this.settings = Object.assign(defaultSettings, settings);
 
         this.loader = loader;
@@ -51,6 +56,9 @@ export class SegmentManager {
     }
 
     public processPlaylist(url: string, content: string): void {
+
+        debug(`processing playlist (parsing) for url: ${url}`);
+
         const parser = new Parser();
         parser.push(content);
         parser.end();
@@ -58,11 +66,21 @@ export class SegmentManager {
         const playlist = new Playlist(url, parser.manifest);
 
         if (playlist.manifest.playlists) {
+
+            debug('found master playlist')
+
             this.masterPlaylist = playlist;
             this.variantPlaylists.forEach(playlist => playlist.swarmId = this.getSwarmId(playlist.url));
             // TODO: validate that playlist was not changed
+
         } else {
+
+            debug('found variant playlist')
+
             const swarmId = this.getSwarmId(url);
+
+            debug(`created new swarm ID (${swarmId}) for url (${url})`)
+
             if (swarmId !== url || !this.masterPlaylist) {
                 playlist.swarmId = swarmId;
                 this.variantPlaylists.set(url, playlist);
@@ -71,39 +89,26 @@ export class SegmentManager {
         }
     }
 
-    public async loadPlaylist(url: string): Promise<string> {
-        const content = await Utils.fetchContentAsText(url);
-        this.processPlaylist(url, content);
-        return content;
+    public hasMasterPlaylist(): boolean {
+        return !! this.masterPlaylist;
     }
 
-    public loadSegment(url: string, onSuccess: (content: ArrayBuffer, downloadSpeed: number) => void, onError: (error: any) => void): void {
-        const segmentLocation = this.getSegmentLocation(url);
-        if (!segmentLocation) {
-            Utils.fetchContentAsArrayBuffer(url)
-                .then((content: ArrayBuffer) => onSuccess(content, 0))
-                .catch((error: any) => onError(error));
-            return;
+    public getMasterPlaylistBaseUrl(): string | null{
+        return this.masterPlaylist ? this.masterPlaylist.baseUrl : null;
+    }
+
+    public getVariantPlaylistUrls(): string[] {
+        if (this.masterPlaylist && this.masterPlaylist.manifest) {
+            const baseUrl: string = this.masterPlaylist.baseUrl;
+            return this.masterPlaylist.manifest.playlists
+                // TODO: use URLToolkit here to resolve
+                .map((playlist: any) => (baseUrl + playlist.uri as string));
         }
+        return [];
+    }
 
-        const segmentSequence = (segmentLocation.playlist.manifest.mediaSequence ? segmentLocation.playlist.manifest.mediaSequence : 0)
-            + segmentLocation.segmentIndex;
-
-        if (this.playQueue.length > 0) {
-            const previousSegment = this.playQueue[this.playQueue.length - 1];
-            if (previousSegment.segmentSequence !== segmentSequence - 1) {
-                // Reset play queue in case of segment loading out of sequence
-                this.playQueue = [];
-            }
-        }
-
-        if (this.segmentRequest) {
-            this.segmentRequest.onError("Cancel segment request: simultaneous segment requests are not supported");
-        }
-
-        this.segmentRequest = new SegmentRequest(url, segmentSequence, segmentLocation.playlist.url, onSuccess, onError);
-        this.playQueue.push({segmentUrl: url, segmentSequence: segmentSequence});
-        this.loadSegments(segmentLocation.playlist, segmentLocation.segmentIndex, true);
+    public getVariantPlaylists(): Playlist[] {
+        return Array.from(this.variantPlaylists.values())
     }
 
     public setPlayingSegment(url: string): void {
@@ -132,6 +137,37 @@ export class SegmentManager {
         this.variantPlaylists.clear();
         this.playQueue = [];
     }
+
+    /*
+    private loadSegment(url: string, onSuccess: (content: ArrayBuffer, downloadSpeed: number) => void, onError: (error: any) => void): void {
+        const segmentLocation = this.getSegmentLocation(url);
+        if (!segmentLocation) {
+            Utils.fetchContentAsArrayBuffer(url)
+                .then((content: ArrayBuffer) => onSuccess(content, 0))
+                .catch((error: any) => onError(error));
+            return;
+        }
+
+        const segmentSequence = (segmentLocation.playlist.manifest.mediaSequence ? segmentLocation.playlist.manifest.mediaSequence : 0)
+            + segmentLocation.segmentIndex;
+
+        if (this.playQueue.length > 0) {
+            const previousSegment = this.playQueue[this.playQueue.length - 1];
+            if (previousSegment.segmentSequence !== segmentSequence - 1) {
+                // Reset play queue in case of segment loading out of sequence
+                this.playQueue = [];
+            }
+        }
+
+        if (this.segmentRequest) {
+            this.segmentRequest.onError("Cancel segment request: simultaneous segment requests are not supported");
+        }
+
+        this.segmentRequest = new SegmentRequest(url, segmentSequence, segmentLocation.playlist.url, onSuccess, onError);
+        this.playQueue.push({segmentUrl: url, segmentSequence: segmentSequence});
+        this.loadSegments(segmentLocation.playlist, segmentLocation.segmentIndex, true);
+    }
+    */
 
     private updateSegments(): void {
         if (!this.segmentRequest) {
@@ -243,13 +279,17 @@ export class SegmentManager {
         return playlistUrl;
     }
 
-} // end of SegmentManager
+}
 
 class Playlist {
     public baseUrl: string;
     public swarmId: string = "";
 
-    public constructor(readonly url: string, readonly manifest: any) {
+    public constructor(
+        readonly url: string,
+        readonly manifest: any
+    ) {
+
         const pos = url.lastIndexOf("/");
         if (pos === -1) {
             throw new Error("Unexpected playlist URL format");
@@ -275,6 +315,38 @@ class Playlist {
     public getSegmentAbsoluteUrl(segmentUrl: string): string {
         return Utils.isAbsoluteUrl(segmentUrl) ? segmentUrl : this.baseUrl + segmentUrl;
     }
+
+    public hasVariants(): boolean {
+        return !! this.manifest.playlists && this.manifest.playlists.length > 0;
+    }
+
+    public hasMedia(): boolean {
+        return !! this.manifest.segments && this.manifest.segments.length > 0;
+    }
+
+    public getMediaFragments(): MediaFragment[] | null {
+        let timestamp = 0;
+        if (this.manifest.segments && this.manifest.segments.length > 0) {
+            return this.manifest.segments.map((segment: any) => {
+                const mediaFragment = new MediaFragment(
+                    segment.uri,
+                    segment.duration,
+                    timestamp + segment.timeline
+                );
+                timestamp += segment.duration;
+                return mediaFragment;
+            });
+        }
+        return null
+    }
+}
+
+class MediaFragment {
+    constructor(
+        public readonly url: string,
+        public readonly duration: number,
+        public readonly timestampOffset: number
+    ) {}
 }
 
 class SegmentRequest {

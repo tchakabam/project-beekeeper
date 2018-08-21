@@ -1,6 +1,12 @@
 import { EventEmitter } from "eventemitter3";
 import { LoaderInterface, HybridLoader, Events } from "../../../core/lib";
-import { SegmentManager } from "./segment-manager";
+import { HlsAccessProxy } from "./hls-access-proxy";
+
+import Utils from './utils';
+
+import * as Debug from "debug";
+
+const debug = Debug("p2pml:virtual:engine");
 
 export class Engine extends EventEmitter {
 
@@ -9,13 +15,17 @@ export class Engine extends EventEmitter {
     }
 
     private readonly loader: LoaderInterface;
-    private readonly segmentManager: SegmentManager;
+    private sourceUrl: string | null = null;
+
+    readonly segmentManager: HlsAccessProxy;
 
     public constructor(settings: any = {}) {
         super();
 
+        debug("created virtual engine", settings);
+
         this.loader = new HybridLoader(settings.loader);
-        this.segmentManager = new SegmentManager(this.loader);
+        this.segmentManager = new HlsAccessProxy(this.loader);
 
         Object.keys(Events)
             .map(eventKey => Events[eventKey as any])
@@ -26,14 +36,39 @@ export class Engine extends EventEmitter {
         this.loader.destroy();
     }
 
-    public getSettings(): any {
-        return {
-            segments: this.segmentManager.getSettings(),
-            loader: this.loader.getSettings()
-        };
+    public setSource(url: string) {
+        if (this.sourceUrl) {
+            throw new Error("Source URL already set");
+        }
+
+        this.sourceUrl = url;
+
+        Utils.fetchContentAsText(url).then((data: string) => {
+            debug(`loaded content from source url: ${url}`)
+            this.segmentManager.processPlaylist(url, data);
+
+            if (this.segmentManager.hasMasterPlaylist()) {
+                this._checkForVariants();
+            }
+
+        }).catch((err) => {
+            this.sourceUrl = null;
+            console.error(`Failed loading source URL (${url}), reason:`, err);
+        })
     }
 
-    public setPlayingSegment(url: string) {
-        this.segmentManager.setPlayingSegment(url);
+    private _checkForVariants() {
+
+        this.segmentManager.getVariantPlaylistUrls().forEach((url: string) => {
+            Utils.fetchContentAsText(url).then((data: string) => {
+                debug(`loaded content from variant media url: ${url}`)
+                this.segmentManager.processPlaylist(url, data);
+            }).catch((err) => {
+                this.sourceUrl = null;
+                console.error(`Failed loading variant media URL (${url}), reason:`, err);
+            })
+        })
+
     }
+
 }
