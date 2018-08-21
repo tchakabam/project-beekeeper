@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+
+
 export class Segment {
     public constructor(
         readonly id: string,
@@ -70,9 +72,10 @@ export enum Events {
 }
 
 export interface LoaderInterface {
-    on(eventName: string | symbol, listener: Function): this;
+    on(event: string | symbol, listener: (...args: any[]) => void): this;
     load(segments: Segment[], swarmId: string): void;
     getSegment(id: string): Segment | undefined;
     getSettings(): any;
     destroy(): void;
 }
+
