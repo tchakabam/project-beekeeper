@@ -1,7 +1,6 @@
-import { EventEmitter } from "events";
+import { EventEmitter } from "eventemitter3";
 import { LoaderInterface, HybridLoader, Events } from "../../../core/lib";
 import { SegmentManager } from "./segment-manager";
-
 
 export class Engine extends EventEmitter {
 

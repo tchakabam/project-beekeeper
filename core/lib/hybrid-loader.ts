@@ -17,7 +17,7 @@
 import * as Debug from "debug";
 
 import {LoaderInterface, Events, Segment} from "./loader-interface";
-import {EventEmitter} from "events";
+import {EventEmitter} from "eventemitter3"
 import {HttpMediaManager} from "./http-media-manager";
 import {P2PMediaManager} from "./p2p-media-manager";
 import {MediaPeerSegmentStatus} from "./media-peer";
