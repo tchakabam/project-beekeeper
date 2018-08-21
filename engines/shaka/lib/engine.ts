@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {EventEmitter} from "events";
+import {EventEmitter} from "eventemitter3";
 import {Events, LoaderInterface, HybridLoader} from "../../../core/lib";
 import {SegmentManager} from "./segment-manager";
 import * as integration from "./integration";
