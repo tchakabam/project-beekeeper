@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
-import { LoaderInterface, HybridLoader, Events } from "../../core/lib";
+import { LoaderInterface, HybridLoader, Events } from "../../../core/lib";
 import { SegmentManager } from "./segment-manager";
+
 
 export class Engine extends EventEmitter {
 
@@ -22,16 +23,13 @@ export class Engine extends EventEmitter {
             .forEach(event => this.loader.on(event, (...args: any[]) => this.emit(event, ...args)));
     }
 
-    public createLoaderClass(): any {
-
-    }
-
     public destroy() {
         this.loader.destroy();
     }
 
     public getSettings(): any {
         return {
+            segments: this.segmentManager.getSettings(),
             loader: this.loader.getSettings()
         };
     }

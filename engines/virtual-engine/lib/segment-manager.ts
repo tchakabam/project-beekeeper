@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-/// <reference path="../../decl/m3u8-parser.d.ts" />
+/// <reference path="../../../decl/m3u8-parser.d.ts" />
 
-import {Events, Segment, LoaderInterface} from "../../core/lib";
-import Utils from "./utils";
+//import * as Debug from "debug";
 import {Parser} from "m3u8-parser";
+
+import {Events, Segment, LoaderInterface} from "../../../core/lib";
+import Utils from "./utils";
+
+//const debug = Debug("p2pml:http-media-manager");
 
 const defaultSettings: Settings = {
     forwardSegmentCount: 20
