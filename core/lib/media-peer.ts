@@ -36,6 +36,19 @@ export enum MediaPeerSegmentStatus {
     LoadingByHttp = "loading_by_http"
 }
 
+export interface IMediaPeerTransport {
+    readonly id: string;
+    readonly remoteAddress: string;
+
+    write(buffer: Buffer | string): void;
+
+    on(event: "connect" | "close", handler: () => void): void;
+    on(event: "error", handler: (error: Error) => void): void;
+    on(event: "data", handler: (data: ArrayBuffer) => void): void;
+
+    destroy(): void;
+}
+
 export class MediaPeer extends StringlyTypedEventEmitter<
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |
@@ -55,7 +68,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
     private isSafari11_0: boolean = false;
 
     constructor(
-            private readonly peer: any,
+            private readonly peer: IMediaPeerTransport,
             readonly settings: {
                 p2pSegmentDownloadTimeout: number,
                 webRtcMaxMessageSize: number
@@ -64,8 +77,8 @@ export class MediaPeer extends StringlyTypedEventEmitter<
 
         this.peer.on("connect", () => this.onPeerConnect());
         this.peer.on("close", () => this.onPeerClose());
-        this.peer.on("error", (error: any) => this.debug("peer error", this.id, error, this));
-        this.peer.on("data", (data: any) => this.onPeerData(data));
+        this.peer.on("error", (error: Error) => this.debug("peer error", this.id, error, this));
+        this.peer.on("data", this.onPeerData.bind(this));
 
         this.id = peer.id;
 
@@ -229,7 +242,8 @@ export class MediaPeer extends StringlyTypedEventEmitter<
         let bytesLeft = data.byteLength;
         while (bytesLeft > 0) {
             const bytesToSend = (bytesLeft >= this.settings.webRtcMaxMessageSize ? this.settings.webRtcMaxMessageSize : bytesLeft);
-            const buffer = this.isSafari11_0 ?
+
+            const buffer: Buffer = this.isSafari11_0 ?
                 Buffer.from(data.slice(data.byteLength - bytesLeft, data.byteLength - bytesLeft + bytesToSend)) : // workaround for Safari 11.0 bug: https://bugs.webkit.org/show_bug.cgi?id=173052
                 Buffer.from(data, data.byteLength - bytesLeft, bytesToSend); // avoid memory copying
 

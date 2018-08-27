@@ -20,7 +20,7 @@ import {Client} from "bittorrent-tracker";
 import {createHash} from "crypto";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 import {Segment} from "./loader-interface";
-import {MediaPeer, MediaPeerSegmentStatus} from "./media-peer";
+import {MediaPeer, MediaPeerSegmentStatus, IMediaPeerTransport} from "./media-peer";
 import {SegmentInternal} from "./segment-internal";
 
 const PEER_PROTOCOL_VERSION = 1;
@@ -32,13 +32,7 @@ class PeerSegmentRequest {
     ) {}
 }
 
-export interface IMediaPeerTransport {
-    readonly id: string;
-
-    destroy(): void;
-}
-
-export interface ITracker  {
+export interface ITrackerClient  {
     on(event: string, callback: (data: any) => void): void;
     start(): void;
     stop(): void;
@@ -50,7 +44,8 @@ export class P2PMediaManager extends StringlyTypedEventEmitter<
     "segment-loaded" | "segment-error" |
     "bytes-downloaded" | "bytes-uploaded"
 > {
-    private trackerClient: ITracker | null = null;
+
+    private trackerClient: ITrackerClient | null = null;
     private peers: Map<string, MediaPeer> = new Map();
     private peerCandidates: Map<string, MediaPeer[]> = new Map();
     private peerSegmentRequests: Map<string, PeerSegmentRequest> = new Map();
