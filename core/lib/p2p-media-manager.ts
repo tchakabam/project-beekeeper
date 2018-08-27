@@ -18,7 +18,7 @@ import * as Debug from "debug";
 
 import {Client} from "bittorrent-tracker";
 import {createHash} from "crypto";
-import STEEmitter from "./stringly-typed-event-emitter";
+import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 import {Segment} from "./loader-interface";
 import {MediaPeer, MediaPeerSegmentStatus} from "./media-peer";
 import {SegmentInternal} from "./segment-internal";
@@ -32,12 +32,25 @@ class PeerSegmentRequest {
     ) {}
 }
 
-export class P2PMediaManager extends STEEmitter<
+export interface IMediaPeerTransport {
+    readonly id: string;
+
+    destroy(): void;
+}
+
+export interface ITracker  {
+    on(event: string, callback: (data: any) => void): void;
+    start(): void;
+    stop(): void;
+    destroy(): void;
+}
+
+export class P2PMediaManager extends StringlyTypedEventEmitter<
     "peer-connected" | "peer-closed" | "peer-data-updated" |
     "segment-loaded" | "segment-error" |
     "bytes-downloaded" | "bytes-uploaded"
 > {
-    private trackerClient: any = null;
+    private trackerClient: ITracker | null = null;
     private peers: Map<string, MediaPeer> = new Map();
     private peerCandidates: Map<string, MediaPeer[]> = new Map();
     private peerSegmentRequests: Map<string, PeerSegmentRequest> = new Map();
@@ -86,6 +99,9 @@ export class P2PMediaManager extends STEEmitter<
         };
 
         this.trackerClient = new Client(clientOptions);
+        if (!this.trackerClient) {
+            throw new Error('Tracker client instance does not exist');
+        }
 
         // TODO: Add better handling here
         this.trackerClient.on("error", (error: any) => this.debug("tracker error", error));
@@ -96,7 +112,7 @@ export class P2PMediaManager extends STEEmitter<
         this.trackerClient.start();
     }
 
-    private onTrackerPeer(trackerPeer: any): void {
+    private onTrackerPeer(trackerPeer: IMediaPeerTransport): void {
         this.debug("tracker peer", trackerPeer.id, trackerPeer);
 
         if (this.peers.has(trackerPeer.id)) {

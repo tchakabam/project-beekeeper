@@ -15,10 +15,10 @@
  */
 
 import * as Debug from "debug";
-import STEEmitter from "./stringly-typed-event-emitter";
+import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 import {Segment} from "./loader-interface";
 
-export class HttpMediaManager extends STEEmitter<
+export class HttpMediaManager extends StringlyTypedEventEmitter<
     "segment-loaded" | "segment-error" | "bytes-downloaded"
 > {
 

@@ -15,9 +15,15 @@
  */
 
 import * as Debug from "debug";
-import STEEmitter from "./stringly-typed-event-emitter";
+import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 
-enum MediaPeerCommands {
+class DownloadingSegment {
+    public bytesDownloaded = 0;
+    public pieces: ArrayBuffer[] = [];
+    constructor(readonly id: string, readonly size: number) {}
+}
+
+export enum MediaPeerCommands {
     SegmentData = "segment_data",
     SegmentAbsent = "segment_absent",
     SegmentsMap = "segments_map",
@@ -30,13 +36,7 @@ export enum MediaPeerSegmentStatus {
     LoadingByHttp = "loading_by_http"
 }
 
-class DownloadingSegment {
-    public bytesDownloaded = 0;
-    public pieces: ArrayBuffer[] = [];
-    constructor(readonly id: string, readonly size: number) {}
-}
-
-export class MediaPeer extends STEEmitter<
+export class MediaPeer extends StringlyTypedEventEmitter<
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |
     "segment-request" | "segment-absent" |
@@ -46,6 +46,7 @@ export class MediaPeer extends STEEmitter<
 > {
     public id: string;
     public remoteAddress: string = "";
+
     private downloadingSegmentId: string | null = null;
     private downloadingSegment: DownloadingSegment | null = null;
     private segmentsMap = new Map<string, MediaPeerSegmentStatus>();
@@ -53,7 +54,8 @@ export class MediaPeer extends STEEmitter<
     private timer: number | null = null;
     private isSafari11_0: boolean = false;
 
-    constructor(readonly peer: any,
+    constructor(
+            private readonly peer: any,
             readonly settings: {
                 p2pSegmentDownloadTimeout: number,
                 webRtcMaxMessageSize: number

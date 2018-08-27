@@ -16,7 +16,7 @@
 
 import {EventEmitter} from "eventemitter3";
 
-export default class<T extends string> extends EventEmitter {
+export class StringlyTypedEventEmitter<T extends string> extends EventEmitter {
     public on(event: T, listener: (...args: any[]) => void) { return super.on(event, listener); }
     public emit(event: T, ...args: any[]) { return super.emit(event, ...args); }
 }
