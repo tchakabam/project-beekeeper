@@ -23,6 +23,7 @@
     "shaka player"
   ],
   "scripts": {
+    "build": "npm run webpack:build",
     "start": "npm run webpack:devserver",
     "test": "mocha -r ts-node/register test/*.test.ts",
     "lint": "tslint -c ./tslint.json -p ./tsconfig.test.json",
