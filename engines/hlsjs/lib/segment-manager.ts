@@ -16,7 +16,7 @@
 
 /// <reference path="../../../decl/m3u8-parser.d.ts" />
 
-import {Events, Segment, LoaderInterface} from "../../../core/lib/index";
+import {Events, MediaSegment, IMediaDownloader} from "../../../core/lib/index";
 import Utils from "./utils";
 import {Parser} from "m3u8-parser";
 
@@ -26,14 +26,14 @@ const defaultSettings: Settings = {
 
 export class SegmentManager {
 
-    private loader: LoaderInterface;
+    private loader: IMediaDownloader;
     private masterPlaylist: Playlist | null = null;
     private variantPlaylists: Map<string, Playlist> = new Map();
     private segmentRequest: SegmentRequest | null = null;
     private playQueue: {segmentSequence: number, segmentUrl: string}[] = [];
     private readonly settings: Settings;
 
-    public constructor(loader: LoaderInterface, settings: any = {}) {
+    public constructor(loader: IMediaDownloader, settings: any = {}) {
         this.settings = Object.assign(defaultSettings, settings);
 
         this.loader = loader;
@@ -147,21 +147,21 @@ export class SegmentManager {
         }
     }
 
-    private onSegmentLoaded = (segment: Segment) => {
+    private onSegmentLoaded = (segment: MediaSegment) => {
         if (this.segmentRequest && this.segmentRequest.segmentUrl === segment.url) {
             this.segmentRequest.onSuccess(segment.data!.slice(0), segment.downloadSpeed);
             this.segmentRequest = null;
         }
     }
 
-    private onSegmentError = (segment: Segment, error: any) => {
+    private onSegmentError = (segment: MediaSegment, error: any) => {
         if (this.segmentRequest && this.segmentRequest.segmentUrl === segment.url) {
             this.segmentRequest.onError(error);
             this.segmentRequest = null;
         }
     }
 
-    private onSegmentAbort = (segment: Segment) => {
+    private onSegmentAbort = (segment: MediaSegment) => {
         if (this.segmentRequest && this.segmentRequest.segmentUrl === segment.url) {
             this.segmentRequest.onError("Loading aborted: internal abort");
             this.segmentRequest = null;
@@ -182,7 +182,7 @@ export class SegmentManager {
     }
 
     private loadSegments(playlist: Playlist, segmentIndex: number, requestFirstSegment: boolean, notInPlaylistSegment?: {url: string, sequence: number}): void {
-        const segments: Segment[] = [];
+        const segments: MediaSegment[] = [];
         const playlistSegments: any[] = playlist.manifest.segments;
         const initialSequence: number = playlist.manifest.mediaSequence ? playlist.manifest.mediaSequence : 0;
         let loadSegmentId: string | null = null;
@@ -192,7 +192,7 @@ export class SegmentManager {
         if (notInPlaylistSegment) {
             const url = playlist.getSegmentAbsoluteUrl(notInPlaylistSegment.url);
             const id = this.getSegmentId(playlist, notInPlaylistSegment.sequence);
-            segments.push(new Segment(id, url, undefined, priority++));
+            segments.push(new MediaSegment(id, url, undefined, priority++));
 
             if (requestFirstSegment) {
                 loadSegmentId = id;
@@ -202,7 +202,7 @@ export class SegmentManager {
         for (let i = segmentIndex; i < playlistSegments.length && segments.length < this.settings.forwardSegmentCount; ++i) {
             const url = playlist.getSegmentAbsoluteUrlByIndex(i);
             const id = this.getSegmentId(playlist, initialSequence + i);
-            segments.push(new Segment(id, url, undefined, priority++));
+            segments.push(new MediaSegment(id, url, undefined, priority++));
 
             if (requestFirstSegment && !loadSegmentId) {
                 loadSegmentId = id;

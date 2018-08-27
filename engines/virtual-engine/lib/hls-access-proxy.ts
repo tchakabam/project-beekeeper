@@ -19,7 +19,7 @@
 //import * as Debug from "debug";
 import {Parser} from "m3u8-parser";
 
-import {Events, Segment, LoaderInterface} from "../../../core/lib";
+import {Events, MediaSegment, IMediaDownloader} from "../../../core/lib";
 import Utils from "./utils";
 
 import * as Debug from "debug";
@@ -32,14 +32,14 @@ const defaultSettings: Settings = {
 
 export class HlsAccessProxy {
 
-    private loader: LoaderInterface;
+    private loader: IMediaDownloader;
     private masterPlaylist: Playlist | null = null;
     private variantPlaylists: Map<string, Playlist> = new Map();
     private segmentRequest: SegmentRequest | null = null;
     private playQueue: {segmentSequence: number, segmentUrl: string}[] = [];
     private readonly settings: Settings;
 
-    public constructor(loader: LoaderInterface, settings: any = {}) {
+    public constructor(loader: IMediaDownloader, settings: any = {}) {
 
         debug("created SegmentManager")
 
@@ -187,21 +187,21 @@ export class HlsAccessProxy {
         }
     }
 
-    private onSegmentLoaded = (segment: Segment) => {
+    private onSegmentLoaded = (segment: MediaSegment) => {
         if (this.segmentRequest && this.segmentRequest.segmentUrl === segment.url) {
             this.segmentRequest.onSuccess(segment.data!.slice(0), segment.downloadSpeed);
             this.segmentRequest = null;
         }
     }
 
-    private onSegmentError = (segment: Segment, error: any) => {
+    private onSegmentError = (segment: MediaSegment, error: any) => {
         if (this.segmentRequest && this.segmentRequest.segmentUrl === segment.url) {
             this.segmentRequest.onError(error);
             this.segmentRequest = null;
         }
     }
 
-    private onSegmentAbort = (segment: Segment) => {
+    private onSegmentAbort = (segment: MediaSegment) => {
         if (this.segmentRequest && this.segmentRequest.segmentUrl === segment.url) {
             this.segmentRequest.onError("Loading aborted: internal abort");
             this.segmentRequest = null;
@@ -222,7 +222,7 @@ export class HlsAccessProxy {
     }
 
     private loadSegments(playlist: Playlist, segmentIndex: number, requestFirstSegment: boolean, notInPlaylistSegment?: {url: string, sequence: number}): void {
-        const segments: Segment[] = [];
+        const segments: MediaSegment[] = [];
         const playlistSegments: any[] = playlist.manifest.segments;
         const initialSequence: number = playlist.manifest.mediaSequence ? playlist.manifest.mediaSequence : 0;
         let loadSegmentId: string | null = null;
@@ -232,7 +232,7 @@ export class HlsAccessProxy {
         if (notInPlaylistSegment) {
             const url = playlist.getSegmentAbsoluteUrl(notInPlaylistSegment.url);
             const id = this.getSegmentId(playlist, notInPlaylistSegment.sequence);
-            segments.push(new Segment(id, url, undefined, priority++));
+            segments.push(new MediaSegment(id, url, undefined, priority++));
 
             if (requestFirstSegment) {
                 loadSegmentId = id;
@@ -242,7 +242,7 @@ export class HlsAccessProxy {
         for (let i = segmentIndex; i < playlistSegments.length && segments.length < this.settings.forwardSegmentCount; ++i) {
             const url = playlist.getSegmentAbsoluteUrlByIndex(i);
             const id = this.getSegmentId(playlist, initialSequence + i);
-            segments.push(new Segment(id, url, undefined, priority++));
+            segments.push(new MediaSegment(id, url, undefined, priority++));
 
             if (requestFirstSegment && !loadSegmentId) {
                 loadSegmentId = id;

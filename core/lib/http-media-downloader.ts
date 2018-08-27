@@ -16,9 +16,9 @@
 
 import * as Debug from "debug";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
-import {Segment} from "./loader-interface";
+import {MediaSegment} from "./media-access-proxy";
 
-export class HttpMediaManager extends StringlyTypedEventEmitter<
+export class HttpMediaDownloader extends StringlyTypedEventEmitter<
     "segment-loaded" | "segment-error" | "bytes-downloaded"
 > {
 
@@ -29,7 +29,7 @@ export class HttpMediaManager extends StringlyTypedEventEmitter<
         super();
     }
 
-    public download(segment: Segment): void {
+    public download(segment: MediaSegment): void {
         if (this.isDownloading(segment)) {
             return;
         }
@@ -69,7 +69,7 @@ export class HttpMediaManager extends StringlyTypedEventEmitter<
         request.send();
     }
 
-    public abort(segment: Segment): void {
+    public abort(segment: MediaSegment): void {
         const xhr = this.xhrRequests.get(segment.id);
         if (xhr) {
             xhr.abort();
@@ -78,7 +78,7 @@ export class HttpMediaManager extends StringlyTypedEventEmitter<
         }
     }
 
-    public isDownloading(segment: Segment): boolean {
+    public isDownloading(segment: MediaSegment): boolean {
         return this.xhrRequests.has(segment.id);
     }
 

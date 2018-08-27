@@ -16,17 +16,78 @@
 
 import * as Debug from "debug";
 
-import {LoaderInterface, Events, Segment} from "./loader-interface";
 import {EventEmitter} from "eventemitter3"
-import {HttpMediaManager} from "./http-media-manager";
-import {P2PMediaManager} from "./p2p-media-manager";
+import {HttpMediaDownloader} from "./http-media-downloader";
+import {P2PMediaDownloader} from "./p2p-media-downloader";
 import {MediaPeerSegmentStatus} from "./media-peer";
 import {SegmentInternal} from "./segment-internal";
 import {SpeedApproximator} from "./speed-approximator";
 
 const getBrowserRtc = require("get-browser-rtc");
 
-const defaultSettings: Settings = {
+export type MediaAccessProxySettings = {
+    /**
+     * Segment lifetime in cache. The segment is deleted from the cache if the last access time is greater than this value (in milliseconds).
+     */
+    cachedSegmentExpiration: number;
+
+    /**
+     * Max number of segments that can be stored in the cache.
+     */
+    cachedSegmentsCount: number;
+
+    /**
+     * Enable/Disable peers interaction.
+     */
+    useP2P: boolean;
+
+    /**
+     * The maximum priority of the segments to be downloaded (if not available) as quickly as possible (i.e. via HTTP method).
+     */
+    requiredSegmentsPriority: number;
+
+    /**
+     * Max number of simultaneous downloads from peers.
+     */
+    simultaneousP2PDownloads: number;
+
+    /**
+     * Probability of downloading remaining not downloaded segment in the segments queue via HTTP.
+     */
+    httpDownloadProbability: number;
+
+    /**
+     * Interval of the httpDownloadProbability check (in milliseconds).
+     */
+    httpDownloadProbabilityInterval: number;
+
+    /**
+     * Max number of the segments to be downloaded via HTTP or P2P methods.
+     */
+    bufferedSegmentsCount: number;
+
+    /**
+     * Max WebRTC message size. 64KiB - 1B should work with most of recent browsers. Set it to 16KiB for older browsers support.
+     */
+    webRtcMaxMessageSize: number;
+
+    /**
+     * Timeout to download a segment from a peer. If exceeded the peer is dropped.
+     */
+    p2pSegmentDownloadTimeout: number;
+
+    /**
+     * Torrent trackers (announcers) to use.
+     */
+    trackerAnnounce: string[];
+
+    /**
+     * An RTCConfiguration dictionary providing options to configure WebRTC connections.
+     */
+    rtcConfig: any;
+}
+
+export const defaultSettings: MediaAccessProxySettings = {
     cachedSegmentExpiration: 5 * 60 * 1000,
     cachedSegmentsCount: 30,
 
@@ -43,16 +104,79 @@ const defaultSettings: Settings = {
     rtcConfig: require("simple-peer").config
 };
 
-export default class HybridLoader extends EventEmitter implements LoaderInterface {
+export class MediaSegment {
+    public constructor(
+        readonly id: string,
+        readonly url: string,
+        readonly range: string | undefined,
+        readonly priority = 0,
+        readonly data: ArrayBuffer | undefined = undefined,
+        readonly downloadSpeed = 0
+    ) {}
+}
+
+export enum Events {
+    /**
+     * Emitted when segment has been downloaded.
+     * Args: segment
+     */
+    SegmentLoaded = "segment_loaded",
+
+    /**
+     * Emitted when an error occurred while loading the segment.
+     * Args: segment, error
+     */
+    SegmentError = "segment_error",
+
+    /**
+     * Emitted for each segment that does not hit into a new segments queue when the load() method is called.
+     * Args: segment
+     */
+    SegmentAbort = "segment_abort",
+
+    /**
+     * Emitted when a peer is connected.
+     * Args: peer
+     */
+    PeerConnect = "peer_connect",
+
+    /**
+     * Emitted when a peer is disconnected.
+     * Args: peerId
+     */
+    PeerClose = "peer_close",
+
+    /**
+     * Emitted when a segment piece has been downloaded.
+     * Args: method (can be "http" or "p2p" only), bytes
+     */
+    PieceBytesDownloaded = "piece_bytes_downloaded",
+
+    /**
+     * Emitted when a segment piece has been uploaded.
+     * Args: method (can be "p2p" only), bytes
+     */
+    PieceBytesUploaded = "piece_bytes_uploaded"
+}
+
+export interface IMediaDownloader {
+    on(event: string | symbol, listener: (...args: any[]) => void): this;
+    load(segments: MediaSegment[], swarmId: string): void;
+    getSegment(id: string): MediaSegment | undefined;
+    getSettings(): any;
+    destroy(): void;
+}
+
+export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
 
     private readonly debug = Debug("p2pml:hybrid-loader");
-    private readonly httpManager: HttpMediaManager;
-    private readonly p2pManager: P2PMediaManager;
+    private readonly httpManager: HttpMediaDownloader;
+    private readonly p2pManager: P2PMediaDownloader;
     private readonly segments: Map<string, SegmentInternal> = new Map();
-    private segmentsQueue: Segment[] = [];
+    private segmentsQueue: MediaSegment[] = [];
     private httpDownloadProbabilityTimestamp = -999999;
     private readonly speedApproximator = new SpeedApproximator();
-    private readonly settings: Settings;
+    private readonly settings: MediaAccessProxySettings;
 
     public static isSupported(): boolean {
         const browserRtc = getBrowserRtc();
@@ -81,14 +205,14 @@ export default class HybridLoader extends EventEmitter implements LoaderInterfac
     }
 
     private createHttpManager() {
-        return new HttpMediaManager();
+        return new HttpMediaDownloader();
     }
 
     private createP2PManager() {
-        return new P2PMediaManager(this.segments, this.settings);
+        return new P2PMediaDownloader(this.segments, this.settings);
     }
 
-    public load(segments: Segment[], swarmId: string): void {
+    public load(segments: MediaSegment[], swarmId: string): void {
         this.p2pManager.setSwarmId(swarmId);
         this.debug("load segments", segments, this.segmentsQueue);
 
@@ -128,11 +252,11 @@ export default class HybridLoader extends EventEmitter implements LoaderInterfac
         }
     }
 
-    public getSegment(id: string): Segment | undefined {
+    public getSegment(id: string): MediaSegment | undefined {
         const segment = this.segments.get(id);
         return segment
             ? segment.data
-                ? new Segment(segment.id, segment.url, segment.range, segment.priority, segment.data, segment.downloadSpeed)
+                ? new MediaSegment(segment.id, segment.url, segment.range, segment.priority, segment.data, segment.downloadSpeed)
                 : undefined
             : undefined;
     }
@@ -246,7 +370,7 @@ export default class HybridLoader extends EventEmitter implements LoaderInterfac
         this.emit(Events.PieceBytesUploaded, method, bytes);
     }
 
-    private onSegmentLoaded = (segment: Segment, data: ArrayBuffer) => {
+    private onSegmentLoaded = (segment: MediaSegment, data: ArrayBuffer) => {
         this.debug("segment loaded", segment.id, segment.url);
 
         const segmentInternal = new SegmentInternal(
@@ -264,7 +388,7 @@ export default class HybridLoader extends EventEmitter implements LoaderInterfac
         this.p2pManager.sendSegmentsMapToAll(this.createSegmentsMap());
     }
 
-    private onSegmentError = (segment: Segment, event: any) => {
+    private onSegmentError = (segment: MediaSegment, event: any) => {
         this.emit(Events.SegmentError, segment, event);
         this.processSegmentsQueue();
     }
@@ -272,7 +396,7 @@ export default class HybridLoader extends EventEmitter implements LoaderInterfac
     private emitSegmentLoaded(segmentInternal: SegmentInternal): void {
         segmentInternal.lastAccessed = this.now();
 
-        const segment = new Segment(
+        const segment = new MediaSegment(
             segmentInternal.id,
             segmentInternal.url,
             segmentInternal.range,
@@ -340,64 +464,3 @@ export default class HybridLoader extends EventEmitter implements LoaderInterfac
 
 } // end of HybridLoader
 
-interface Settings {
-    /**
-     * Segment lifetime in cache. The segment is deleted from the cache if the last access time is greater than this value (in milliseconds).
-     */
-    cachedSegmentExpiration: number;
-
-    /**
-     * Max number of segments that can be stored in the cache.
-     */
-    cachedSegmentsCount: number;
-
-    /**
-     * Enable/Disable peers interaction.
-     */
-    useP2P: boolean;
-
-    /**
-     * The maximum priority of the segments to be downloaded (if not available) as quickly as possible (i.e. via HTTP method).
-     */
-    requiredSegmentsPriority: number;
-
-    /**
-     * Max number of simultaneous downloads from peers.
-     */
-    simultaneousP2PDownloads: number;
-
-    /**
-     * Probability of downloading remaining not downloaded segment in the segments queue via HTTP.
-     */
-    httpDownloadProbability: number;
-
-    /**
-     * Interval of the httpDownloadProbability check (in milliseconds).
-     */
-    httpDownloadProbabilityInterval: number;
-
-    /**
-     * Max number of the segments to be downloaded via HTTP or P2P methods.
-     */
-    bufferedSegmentsCount: number;
-
-    /**
-     * Max WebRTC message size. 64KiB - 1B should work with most of recent browsers. Set it to 16KiB for older browsers support.
-     */
-    webRtcMaxMessageSize: number;
-
-    /**
-     * Timeout to download a segment from a peer. If exceeded the peer is dropped.
-     */
-    p2pSegmentDownloadTimeout: number;
-
-    /**
-     * Torrent trackers (announcers) to use.
-     */
-    trackerAnnounce: string[];
-
-    /**
-     * An RTCConfiguration dictionary providing options to configure WebRTC connections.
-     */
-    rtcConfig: any;
-}

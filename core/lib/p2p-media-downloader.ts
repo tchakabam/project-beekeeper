@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
+/// <reference path="../../decl/bittorrent.d.ts" />
+
 import * as Debug from "debug";
 
 import {Client} from "bittorrent-tracker";
 import {createHash} from "crypto";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
-import {Segment} from "./loader-interface";
 import {MediaPeer, MediaPeerSegmentStatus, IMediaPeerTransport} from "./media-peer";
 import {SegmentInternal} from "./segment-internal";
+import { MediaSegment } from "./media-access-proxy";
 
 const PEER_PROTOCOL_VERSION = 1;
 
 class PeerSegmentRequest {
     constructor(
         readonly peerId: string,
-        readonly segment: Segment
+        readonly segment: MediaSegment
     ) {}
 }
 
@@ -39,7 +41,7 @@ export interface ITrackerClient  {
     destroy(): void;
 }
 
-export class P2PMediaManager extends StringlyTypedEventEmitter<
+export class P2PMediaDownloader extends StringlyTypedEventEmitter<
     "peer-connected" | "peer-closed" | "peer-data-updated" |
     "segment-loaded" | "segment-error" |
     "bytes-downloaded" | "bytes-uploaded"
@@ -139,7 +141,7 @@ export class P2PMediaManager extends StringlyTypedEventEmitter<
         peerCandidatesById.push(peer);
     }
 
-    public download(segment: Segment): boolean {
+    public download(segment: MediaSegment): boolean {
         if (this.isDownloading(segment)) {
             return false;
         }
@@ -158,7 +160,7 @@ export class P2PMediaManager extends StringlyTypedEventEmitter<
         return false;
     }
 
-    public abort(segment: Segment): void {
+    public abort(segment: MediaSegment): void {
         const peerSegmentRequest = this.peerSegmentRequests.get(segment.id);
         if (peerSegmentRequest) {
             const peer = this.peers.get(peerSegmentRequest.peerId);
@@ -169,7 +171,7 @@ export class P2PMediaManager extends StringlyTypedEventEmitter<
         }
     }
 
-    public isDownloading(segment: Segment): boolean {
+    public isDownloading(segment: MediaSegment): boolean {
         return this.peerSegmentRequests.has(segment.id);
     }
 

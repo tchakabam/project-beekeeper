@@ -16,8 +16,7 @@
 
 declare var __VERSION__: any;
 
-export {LoaderInterface, Events, Segment} from "./loader-interface";
-export {default as HybridLoader} from "./hybrid-loader";
+export {MediaAccessProxy, IMediaDownloader, Events, MediaSegment} from "./media-access-proxy";
 export const version = __VERSION__;
 
 

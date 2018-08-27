@@ -15,23 +15,23 @@
  */
 
 import {EventEmitter} from "eventemitter3";
-import {Events, LoaderInterface, HybridLoader} from "../../../core/lib";
+import {Events, IMediaDownloader, MediaAccessProxy} from "../../../core/lib";
 import {SegmentManager} from "./segment-manager";
 import * as integration from "./integration";
 
 export class Engine extends EventEmitter {
 
     public static isSupported(): boolean {
-        return HybridLoader.isSupported();
+        return MediaAccessProxy.isSupported();
     }
 
-    private readonly loader: LoaderInterface;
+    private readonly loader: IMediaDownloader;
     private readonly segmentManager: SegmentManager;
 
     public constructor(settings: any = {}) {
         super();
 
-        this.loader = new HybridLoader(settings.loader);
+        this.loader = new MediaAccessProxy(settings.loader);
         this.segmentManager = new SegmentManager(this.loader, settings.segments);
 
         Object.keys(Events)

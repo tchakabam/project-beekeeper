@@ -15,7 +15,7 @@
  */
 
 import * as Debug from "debug";
-import {Events, Segment as LoaderSegment, LoaderInterface} from "../../../core/lib/index";
+import {Events, MediaSegment, IMediaDownloader} from "../../../core/lib/index";
 import {ParserSegment} from "./parser-segment";
 
 const defaultSettings: Settings = {
@@ -26,14 +26,14 @@ const defaultSettings: Settings = {
 export class SegmentManager {
 
     private readonly debug = Debug("p2pml:shaka:sm");
-    private readonly loader: LoaderInterface;
+    private readonly loader: IMediaDownloader;
     private readonly requests: Map<string, Request> = new Map();
     private manifestUri: string = "";
     private playheadTime: number = 0;
     private readonly segmentHistory: ParserSegment[] = [];
     private readonly settings: Settings;
 
-    public constructor(loader: LoaderInterface, settings: any = {}) {
+    public constructor(loader: IMediaDownloader, settings: any = {}) {
         this.settings = Object.assign(defaultSettings, settings);
 
         this.loader = loader;
@@ -85,7 +85,7 @@ export class SegmentManager {
         }
     }
 
-    private refreshLoad(): LoaderSegment {
+    private refreshLoad(): MediaSegment {
         const lastRequestedSegment = this.segmentHistory[ this.segmentHistory.length - 1 ];
         const safePlayheadTime = this.playheadTime > 0.1 ? this.playheadTime : lastRequestedSegment.start;
         const sequence: ParserSegment[] = this.segmentHistory.reduce((a: ParserSegment[], i) => {
@@ -112,8 +112,8 @@ export class SegmentManager {
 
         const manifestUriNoQuery = this.manifestUri.split("?")[ 0 ];
 
-        const loaderSegments: LoaderSegment[] = sequence.map((s, i) => {
-            return new LoaderSegment(
+        const loaderSegments: MediaSegment[] = sequence.map((s, i) => {
+            return new MediaSegment(
                 `${manifestUriNoQuery}+${s.identity}`,
                 s.uri,
                 s.range,
@@ -139,7 +139,7 @@ export class SegmentManager {
         this.segmentHistory.push(segment);
     }
 
-    private reportSuccess(request: Request, loaderSegment: LoaderSegment) {
+    private reportSuccess(request: Request, loaderSegment: MediaSegment) {
         if (request.resolve) {
             let timeDelation = 0;
             if (loaderSegment.downloadSpeed > 0 && loaderSegment.data && loaderSegment.data.byteLength > 0) {
@@ -160,7 +160,7 @@ export class SegmentManager {
         }
     }
 
-    private onSegmentLoaded = (segment: LoaderSegment) => {
+    private onSegmentLoaded = (segment: MediaSegment) => {
         if (this.requests.has(segment.id)) {
             this.reportSuccess(this.requests.get(segment.id)!, segment);
             this.debug("request delete", segment.id);
@@ -168,7 +168,7 @@ export class SegmentManager {
         }
     }
 
-    private onSegmentError = (segment: LoaderSegment, error: any) => {
+    private onSegmentError = (segment: MediaSegment, error: any) => {
         if (this.requests.has(segment.id)) {
             this.reportError(this.requests.get(segment.id)!, error);
             this.debug("request delete from error", segment.id);
@@ -176,7 +176,7 @@ export class SegmentManager {
         }
     }
 
-    private onSegmentAbort = (segment: LoaderSegment) => {
+    private onSegmentAbort = (segment: MediaSegment) => {
         if (this.requests.has(segment.id)) {
             this.reportError(this.requests.get(segment.id)!, "Internal abort");
             this.debug("request delete from abort", segment.id);

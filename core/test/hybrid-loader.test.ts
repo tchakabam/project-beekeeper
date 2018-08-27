@@ -18,30 +18,31 @@
 /// <reference path="../../node_modules/@types/node/index.d.ts" />
 /// <reference path="../../node_modules/typescript/lib/lib.es2015.d.ts" />
 /// <reference path="../../node_modules/typescript/lib/lib.dom.d.ts" />
-/// <reference path="../lib/declarations.d.ts" />
 
-import {HttpMediaManager} from "../lib/http-media-manager";
-import HybridLoader from "../lib/hybrid-loader";
-import {Segment} from "../lib/loader-interface";
+/// <reference path="../../decl/bittorrent.d.ts" />
+
+import {HttpMediaDownloader} from "../lib/http-media-downloader";
+import {MediaSegment, MediaAccessProxy} from "../lib/media-access-proxy"
 import {anyFunction, anyOfClass, instance, mock, verify, when} from "ts-mockito";
 import * as assert from "assert";
-import {P2PMediaManager} from "../lib/p2p-media-manager";
+import {P2PMediaDownloader} from "../lib/p2p-media-downloader";
 import {MediaPeerSegmentStatus} from "../lib/media-peer";
 
 describe("HybridLoader", () => {
     // HttpMediaManager mock
-    const httpMediaManger = mock(HttpMediaManager);
-    const httpDownloads: Map<string, Segment> = new Map();
-    when(httpMediaManger.download(anyOfClass(Segment))).thenCall((segment) => {
+    const httpMediaManger = mock(HttpMediaDownloader);
+    const httpDownloads: Map<string, MediaSegment> = new Map();
+
+    when(httpMediaManger.download(anyOfClass(MediaSegment))).thenCall((segment) => {
         httpDownloads.set(segment.id, segment);
     });
-    when(httpMediaManger.abort(anyOfClass(Segment))).thenCall((segment) => {
+    when(httpMediaManger.abort(anyOfClass(MediaSegment))).thenCall((segment) => {
         httpDownloads.delete(segment.id);
     });
     when(httpMediaManger.getActiveDownloads()).thenCall(() => {
         return httpDownloads;
     });
-    when(httpMediaManger.isDownloading(anyOfClass(Segment))).thenCall((segment) => {
+    when(httpMediaManger.isDownloading(anyOfClass(MediaSegment))).thenCall((segment) => {
         return httpDownloads.has(segment.id);
     });
     let httpSegmentLoadedListener: Function = () => {};
@@ -50,16 +51,16 @@ describe("HybridLoader", () => {
     });
 
     // P2PMediaManager mock
-    const p2pMediaManager = mock(P2PMediaManager);
-    const p2pAvailableFiles: Segment[] = [];
-    const p2pDownloads: Segment[] = [];
+    const p2pMediaManager = mock(P2PMediaDownloader);
+    const p2pAvailableFiles: MediaSegment[] = [];
+    const p2pDownloads: MediaSegment[] = [];
 
-    when(p2pMediaManager.download(anyOfClass(Segment))).thenCall((segment) => {
+    when(p2pMediaManager.download(anyOfClass(MediaSegment))).thenCall((segment) => {
         if (p2pDownloads.indexOf(segment) === -1 && p2pAvailableFiles.filter((p) => p.id == segment.id).length === 1) {
             p2pDownloads.push(segment);
         }
     });
-    when(p2pMediaManager.abort(anyOfClass(Segment))).thenCall((segment) => {
+    when(p2pMediaManager.abort(anyOfClass(MediaSegment))).thenCall((segment) => {
         const index = p2pDownloads.indexOf(segment);
         if (index !== -1) {
             p2pDownloads.splice(index, 1);
@@ -68,16 +69,16 @@ describe("HybridLoader", () => {
     when(p2pMediaManager.getActiveDownloadsCount()).thenCall(() => {
         return p2pDownloads.length;
     });
-    when(p2pMediaManager.isDownloading(anyOfClass(Segment))).thenCall((segment) => {
+    when(p2pMediaManager.isDownloading(anyOfClass(MediaSegment))).thenCall((segment) => {
         return p2pDownloads.indexOf(segment) !== -1;
     });
     when(p2pMediaManager.getOvrallSegmentsMap()).thenCall(() => {
         return new Map<string, MediaPeerSegmentStatus>();
     });
 
-    HybridLoader.prototype["createHttpManager"] = () => instance(httpMediaManger);
-    HybridLoader.prototype["createP2PManager"] = () => instance(p2pMediaManager);
-    HybridLoader.prototype["now"] = () => Date.now();
+    MediaAccessProxy.prototype["createHttpManager"] = () => instance(httpMediaManger);
+    MediaAccessProxy.prototype["createP2PManager"] = () => instance(p2pMediaManager);
+    MediaAccessProxy.prototype["now"] = () => Date.now();
 
     it("load", () => {
 
@@ -93,15 +94,15 @@ describe("HybridLoader", () => {
             bufferedSegmentsCount: 20,
             trackerAnnounce: [ "wss://tracker.btorrent.xyz/", "wss://tracker.openwebtorrent.com/" ]
         };
-        const hybridLoader = new HybridLoader(settings);
+        const hybridLoader = new MediaAccessProxy(settings);
         verify(httpMediaManger.on("segment-loaded", anyFunction())).once();
 
-        const segments: Segment[] = [
-            new Segment("uu1", "u1", undefined, 0),
-            new Segment("uu2", "u2", undefined, 1),
-            new Segment("uu3", "u3", undefined, 2),
-            new Segment("uu5", "u4", undefined, 3),
-            new Segment("uu4", "u5", undefined, 4)
+        const segments: MediaSegment[] = [
+            new MediaSegment("uu1", "u1", undefined, 0),
+            new MediaSegment("uu2", "u2", undefined, 1),
+            new MediaSegment("uu3", "u3", undefined, 2),
+            new MediaSegment("uu5", "u4", undefined, 3),
+            new MediaSegment("uu4", "u5", undefined, 4)
         ];
         const swarmId = "swarmId";
 
