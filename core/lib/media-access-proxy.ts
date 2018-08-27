@@ -84,7 +84,7 @@ export type MediaAccessProxySettings = {
     /**
      * An RTCConfiguration dictionary providing options to configure WebRTC connections.
      */
-    rtcConfig: any;
+    rtcConfig: RTCConfiguration;
 }
 
 export const defaultSettings: MediaAccessProxySettings = {
