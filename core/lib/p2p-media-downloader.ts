@@ -21,7 +21,7 @@ import * as Debug from "debug";
 import {Client} from "bittorrent-tracker";
 import {createHash} from "crypto";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
-import {MediaPeer, MediaPeerSegmentStatus, IMediaPeerTransport} from "./media-peer";
+import {MediaPeer, MediaPeerSegmentStatus, IMediaPeerTransport, MediaPeerTransportFilterFactory} from "./media-peer";
 import {SegmentInternal} from "./segment-internal";
 import { MediaSegment } from "./media-access-proxy";
 
@@ -62,7 +62,8 @@ export class P2pMediaDownloader extends StringlyTypedEventEmitter<
                 trackerAnnounce: string[],
                 p2pSegmentDownloadTimeout: number,
                 webRtcMaxMessageSize: number,
-                rtcConfig?: RTCConfiguration
+                mediaPeerTransportFilterFactory: MediaPeerTransportFilterFactory
+                rtcConfig?: RTCConfiguration,
             }) {
         super();
 
@@ -118,7 +119,9 @@ export class P2pMediaDownloader extends StringlyTypedEventEmitter<
             return;
         }
 
-        const peer = new MediaPeer(trackerPeer, this.settings);
+        const getTransportWrapper = this.settings.mediaPeerTransportFilterFactory;
+        const mediaPeerTransport: IMediaPeerTransport = getTransportWrapper(trackerPeer);
+        const peer = new MediaPeer(mediaPeerTransport, this.settings);
 
         peer.on("connect", this.onPeerConnect);
         peer.on("close", this.onPeerClose);

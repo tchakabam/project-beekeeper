@@ -50,6 +50,8 @@ export interface IMediaPeerTransport {
     destroy(): void;
 }
 
+export type MediaPeerTransportFilterFactory = (transport: IMediaPeerTransport) => IMediaPeerTransport;
+
 export class MediaPeer extends StringlyTypedEventEmitter<
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |

@@ -19,7 +19,7 @@ import * as Debug from "debug";
 import {EventEmitter} from "eventemitter3"
 import {HttpMediaDownloader} from "./http-media-downloader";
 import {P2pMediaDownloader} from "./p2p-media-downloader";
-import {MediaPeerSegmentStatus} from "./media-peer";
+import {MediaPeerSegmentStatus, MediaPeerTransportFilterFactory} from "./media-peer";
 import {SegmentInternal} from "./segment-internal";
 import {SpeedApproximator} from "./speed-approximator";
 
@@ -85,6 +85,14 @@ export type MediaAccessProxySettings = {
      * An RTCConfiguration dictionary providing options to configure WebRTC connections.
      */
     rtcConfig: RTCConfiguration;
+
+    /**
+     * Inject a factory function to create own transport interface implementation
+     * based on initial transport object create by ITrackerClient.
+     *
+     * Default: just returns the initial transport.
+     */
+    mediaPeerTransportFilterFactory: MediaPeerTransportFilterFactory
 }
 
 export const defaultSettings: MediaAccessProxySettings = {
@@ -101,7 +109,8 @@ export const defaultSettings: MediaAccessProxySettings = {
     webRtcMaxMessageSize: 64 * 1024 - 1,
     p2pSegmentDownloadTimeout: 60000,
     trackerAnnounce: ["wss://tracker.btorrent.xyz/", "wss://tracker.openwebtorrent.com/"],
-    rtcConfig: require("simple-peer").config
+    rtcConfig: require("simple-peer").config,
+    mediaPeerTransportFilterFactory: (transport) => transport
 };
 
 export class MediaSegment {
