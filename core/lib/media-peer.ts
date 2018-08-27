@@ -16,6 +16,7 @@
 
 import * as Debug from "debug";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
+import { detectSafari11_0 } from "./detect-safari-11";
 
 class DownloadingSegment {
     public bytesDownloaded = 0;
@@ -82,21 +83,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
 
         this.id = peer.id;
 
-        this.detectSafari11_0();
-    }
-
-    private detectSafari11_0() {
-        const userAgent: string = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
-        const isSafari = userAgent.indexOf("Safari") != -1 && userAgent.indexOf("Chrome") == -1;
-        if (isSafari) {
-            const match = userAgent.match(/version\/(\d+(\.\d+)?)/i);
-            const version = (match && match.length > 1 && match[1]) || "";
-            if (version === "11.0") {
-                this.isSafari11_0 = true;
-                this.debug("enable workaround for Safari 11.0");
-                return;
-            }
-        }
+        this.isSafari11_0 = detectSafari11_0();
     }
 
     private onPeerConnect(): void {
