@@ -183,7 +183,7 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
         return (browserRtc && (browserRtc.RTCPeerConnection.prototype.createDataChannel !== undefined));
     }
 
-    public constructor(settings: any = {}) {
+    public constructor(settings: Partial<MediaAccessProxySettings> = {}) {
         super();
 
         this.settings = Object.assign(defaultSettings, settings);
