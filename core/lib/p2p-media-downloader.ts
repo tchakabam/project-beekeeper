@@ -41,7 +41,7 @@ export interface ITrackerClient  {
     destroy(): void;
 }
 
-export class P2PMediaDownloader extends StringlyTypedEventEmitter<
+export class P2pMediaDownloader extends StringlyTypedEventEmitter<
     "peer-connected" | "peer-closed" | "peer-data-updated" |
     "segment-loaded" | "segment-error" |
     "bytes-downloaded" | "bytes-uploaded"

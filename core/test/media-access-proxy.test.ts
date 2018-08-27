@@ -25,10 +25,10 @@ import {HttpMediaDownloader} from "../lib/http-media-downloader";
 import {MediaSegment, MediaAccessProxy} from "../lib/media-access-proxy"
 import {anyFunction, anyOfClass, instance, mock, verify, when} from "ts-mockito";
 import * as assert from "assert";
-import {P2PMediaDownloader} from "../lib/p2p-media-downloader";
+import {P2pMediaDownloader} from "../lib/p2p-media-downloader";
 import {MediaPeerSegmentStatus} from "../lib/media-peer";
 
-describe("HybridLoader", () => {
+describe("MediaAccessProxy", () => {
     // HttpMediaManager mock
     const httpMediaManger = mock(HttpMediaDownloader);
     const httpDownloads: Map<string, MediaSegment> = new Map();
@@ -51,7 +51,7 @@ describe("HybridLoader", () => {
     });
 
     // P2PMediaManager mock
-    const p2pMediaManager = mock(P2PMediaDownloader);
+    const p2pMediaManager = mock(P2pMediaDownloader);
     const p2pAvailableFiles: MediaSegment[] = [];
     const p2pDownloads: MediaSegment[] = [];
 

@@ -18,7 +18,7 @@ import * as Debug from "debug";
 
 import {EventEmitter} from "eventemitter3"
 import {HttpMediaDownloader} from "./http-media-downloader";
-import {P2PMediaDownloader} from "./p2p-media-downloader";
+import {P2pMediaDownloader} from "./p2p-media-downloader";
 import {MediaPeerSegmentStatus} from "./media-peer";
 import {SegmentInternal} from "./segment-internal";
 import {SpeedApproximator} from "./speed-approximator";
@@ -171,7 +171,7 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
 
     private readonly debug = Debug("p2pml:hybrid-loader");
     private readonly httpManager: HttpMediaDownloader;
-    private readonly p2pManager: P2PMediaDownloader;
+    private readonly p2pManager: P2pMediaDownloader;
     private readonly segments: Map<string, SegmentInternal> = new Map();
     private segmentsQueue: MediaSegment[] = [];
     private httpDownloadProbabilityTimestamp = -999999;
@@ -209,7 +209,7 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
     }
 
     private createP2PManager() {
-        return new P2PMediaDownloader(this.segments, this.settings);
+        return new P2pMediaDownloader(this.segments, this.settings);
     }
 
     public load(segments: MediaSegment[], swarmId: string): void {
