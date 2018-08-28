@@ -21,16 +21,18 @@
 
 /// <reference path="../../decl/bittorrent.d.ts" />
 
-import {HttpMediaDownloader} from "../lib/http-media-downloader";
-import {MediaSegment, MediaAccessProxy} from "../lib/media-access-proxy"
-import {anyFunction, anyOfClass, instance, mock, verify, when} from "ts-mockito";
 import * as assert from "assert";
-import {P2pMediaDownloader} from "../lib/p2p-media-downloader";
-import {MediaPeerSegmentStatus} from "../lib/media-peer";
+import {anyFunction, anyOfClass, instance, mock, verify, when} from "ts-mockito";
+
+import {MediaDownloaderHttp} from "../lib/media-downloader-http";
+import {MediaDownloaderP2p} from "../lib/media-downloader-p2p";
+import {MediaAccessProxy} from "../lib/media-access-proxy"
+import { MediaSegment } from "../lib";
+import { MediaSegmentStatus } from "../lib/media-segment";
 
 describe("MediaAccessProxy", () => {
     // HttpMediaManager mock
-    const httpMediaManger = mock(HttpMediaDownloader);
+    const httpMediaManger = mock(MediaDownloaderHttp);
     const httpDownloads: Map<string, MediaSegment> = new Map();
 
     when(httpMediaManger.download(anyOfClass(MediaSegment))).thenCall((segment) => {
@@ -51,7 +53,7 @@ describe("MediaAccessProxy", () => {
     });
 
     // P2PMediaManager mock
-    const p2pMediaManager = mock(P2pMediaDownloader);
+    const p2pMediaManager = mock(MediaDownloaderP2p);
     const p2pAvailableFiles: MediaSegment[] = [];
     const p2pDownloads: MediaSegment[] = [];
 
@@ -73,11 +75,11 @@ describe("MediaAccessProxy", () => {
         return p2pDownloads.indexOf(segment) !== -1;
     });
     when(p2pMediaManager.getOvrallSegmentsMap()).thenCall(() => {
-        return new Map<string, MediaPeerSegmentStatus>();
+        return new Map<string, MediaSegmentStatus>();
     });
 
-    MediaAccessProxy.prototype["createHttpManager"] = () => instance(httpMediaManger);
-    MediaAccessProxy.prototype["createP2PManager"] = () => instance(p2pMediaManager);
+    MediaAccessProxy.prototype["createHttpDownloader"] = () => instance(httpMediaManger);
+    MediaAccessProxy.prototype["createP2PDownloader"] = () => instance(p2pMediaManager);
     MediaAccessProxy.prototype["now"] = () => Date.now();
 
     it("load", () => {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-export class SegmentInternal {
+export class InternalSegmentData {
     public lastAccessed = 0;
 
     public constructor (

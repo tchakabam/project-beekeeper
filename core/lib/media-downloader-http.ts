@@ -16,9 +16,9 @@
 
 import * as Debug from "debug";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
-import {MediaSegment} from "./media-access-proxy";
+import { MediaSegment } from "./media-segment";
 
-export class HttpMediaDownloader extends StringlyTypedEventEmitter<
+export class MediaDownloaderHttp extends StringlyTypedEventEmitter<
     "segment-loaded" | "segment-error" | "bytes-downloaded"
 > {
 

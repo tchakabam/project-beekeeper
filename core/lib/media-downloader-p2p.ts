@@ -21,9 +21,10 @@ import * as Debug from "debug";
 import {Client} from "bittorrent-tracker";
 import {createHash} from "crypto";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
-import {MediaPeer, MediaPeerSegmentStatus, IMediaPeerTransport, MediaPeerTransportFilterFactory} from "./media-peer";
-import {SegmentInternal} from "./segment-internal";
-import { MediaSegment } from "./media-access-proxy";
+import {MediaPeer} from "./media-peer";
+import {InternalSegmentData} from "./internal-segment";
+import { MediaSegment, MediaSegmentStatus, MediaSegmentsMapData } from "./media-segment";
+import { MediaPeerTransportFilterFactory, IMediaPeerTransport } from "./media-peer-transport";
 
 const PEER_PROTOCOL_VERSION = 1;
 
@@ -41,7 +42,7 @@ export interface ITrackerClient  {
     destroy(): void;
 }
 
-export class P2pMediaDownloader extends StringlyTypedEventEmitter<
+export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
     "peer-connected" | "peer-closed" | "peer-data-updated" |
     "segment-loaded" | "segment-error" |
     "bytes-downloaded" | "bytes-uploaded"
@@ -56,7 +57,7 @@ export class P2pMediaDownloader extends StringlyTypedEventEmitter<
     private debug = Debug("p2pml:p2p-media-manager");
 
     public constructor(
-            readonly cachedSegments: Map<string, SegmentInternal>,
+            readonly cachedSegments: Map<string, InternalSegmentData>,
             readonly settings: {
                 useP2P: boolean,
                 trackerAnnounce: string[],
@@ -153,7 +154,7 @@ export class P2pMediaDownloader extends StringlyTypedEventEmitter<
         for (let entry = entries.next(); !entry.done; entry = entries.next()) {
             const peer = entry.value;
             if ((peer.getDownloadingSegmentId() == null) &&
-                    (peer.getSegmentsMap().get(segment.id) === MediaPeerSegmentStatus.Loaded)) {
+                    (peer.getSegmentsMap().get(segment.id) === MediaSegmentStatus.Loaded)) {
                 peer.requestSegment(segment.id);
                 this.peerSegmentRequests.set(segment.id, new PeerSegmentRequest(peer.id, segment));
                 return true;
@@ -204,24 +205,24 @@ export class P2pMediaDownloader extends StringlyTypedEventEmitter<
         this.peerCandidates.clear();
     }
 
-    public sendSegmentsMapToAll(segmentsMap: string[][]): void {
+    public sendSegmentsMapToAll(segmentsMap: MediaSegmentsMapData): void {
         this.peers.forEach((peer) => peer.sendSegmentsMap(segmentsMap));
     }
 
-    public sendSegmentsMap(peerId: string, segmentsMap: string[][]): void {
+    public sendSegmentsMap(peerId: string, segmentsMap: MediaSegmentsMapData): void {
         const peer = this.peers.get(peerId);
         if (peer) {
             peer.sendSegmentsMap(segmentsMap);
         }
     }
 
-    public getOvrallSegmentsMap(): Map<string, MediaPeerSegmentStatus> {
-        const overallSegmentsMap: Map<string, MediaPeerSegmentStatus> = new Map();
+    public getOvrallSegmentsMap(): Map<string, MediaSegmentStatus> {
+        const overallSegmentsMap: Map<string, MediaSegmentStatus> = new Map();
         this.peers.forEach(peer => peer.getSegmentsMap().forEach((segmentStatus, segmentId) => {
-            if (segmentStatus === MediaPeerSegmentStatus.Loaded) {
-                overallSegmentsMap.set(segmentId, MediaPeerSegmentStatus.Loaded);
+            if (segmentStatus === MediaSegmentStatus.Loaded) {
+                overallSegmentsMap.set(segmentId, MediaSegmentStatus.Loaded);
             } else if (!overallSegmentsMap.get(segmentId)) {
-                overallSegmentsMap.set(segmentId, MediaPeerSegmentStatus.LoadingByHttp);
+                overallSegmentsMap.set(segmentId, MediaSegmentStatus.LoadingByHttp);
             }
         }));
 
