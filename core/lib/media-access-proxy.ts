@@ -26,6 +26,10 @@ import { getPerfNow } from "./perf-now";
 
 const getBrowserRtc = require("get-browser-rtc");
 
+const rtcDefaultConfig: RTCConfiguration = require("simple-peer").config;
+
+const trackerDefaultAnounce = ["wss://tracker.btorrent.xyz/", "wss://tracker.openwebtorrent.com/"];
+
 export type MediaAccessProxySettings = {
     /**
      * Segment lifetime in cache. The segment is deleted from the cache if the last access time is greater than this value (in milliseconds).
@@ -98,19 +102,29 @@ export type MediaAccessProxySettings = {
 
 export const defaultSettings: MediaAccessProxySettings = {
     cachedSegmentExpiration: 5 * 60 * 1000,
+
     cachedSegmentsCount: 30,
 
     useP2P: true,
+
     requiredSegmentsPriority: 1,
+
     simultaneousP2PDownloads: 3,
+
     httpDownloadProbability: 0.06,
+
     httpDownloadProbabilityInterval: 500,
+
     bufferedSegmentsCount: 20,
 
     webRtcMaxMessageSize: 64 * 1024 - 1,
+
     p2pSegmentDownloadTimeout: 60000,
-    trackerAnnounce: ["wss://tracker.btorrent.xyz/", "wss://tracker.openwebtorrent.com/"],
-    rtcConfig: require("simple-peer").config,
+
+    trackerAnnounce: trackerDefaultAnounce,
+
+    rtcConfig: rtcDefaultConfig,
+
     //mediaPeerTransportFilterFactory: (transport) => transport
     mediaPeerTransportFilterFactory: (transport) => new DefaultMediaPeerTransportFilter(transport)
 };
