@@ -22,8 +22,7 @@ import {Client} from "bittorrent-tracker";
 import {createHash} from "crypto";
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 import {MediaPeer} from "./media-peer";
-import {InternalSegmentData} from "./internal-segment";
-import { MediaSegment, MediaSegmentStatus, MediaSegmentsMapData } from "./media-segment";
+import { MediaSegment, MediaSegmentStatus, MediaSegmentsMapData, StoredMediaSegment } from "./media-segment";
 import { MediaPeerTransportFilterFactory, IMediaPeerTransport } from "./media-peer-transport";
 
 const PEER_PROTOCOL_VERSION = 1;
@@ -57,7 +56,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
     private debug = Debug("p2pml:p2p-media-manager");
 
     public constructor(
-            readonly cachedSegments: Map<string, InternalSegmentData>,
+            readonly cachedSegments: Map<string, StoredMediaSegment>,
             readonly settings: {
                 useP2P: boolean,
                 trackerAnnounce: string[],
@@ -222,7 +221,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
             if (segmentStatus === MediaSegmentStatus.Loaded) {
                 overallSegmentsMap.set(segmentId, MediaSegmentStatus.Loaded);
             } else if (!overallSegmentsMap.get(segmentId)) {
-                overallSegmentsMap.set(segmentId, MediaSegmentStatus.LoadingByHttp);
+                overallSegmentsMap.set(segmentId, MediaSegmentStatus.LoadingViaHttp);
             }
         }));
 

@@ -19,10 +19,10 @@ import * as Debug from "debug";
 import {EventEmitter} from "eventemitter3"
 import {MediaDownloaderHttp} from "./media-downloader-http";
 import {MediaDownloaderP2p} from "./media-downloader-p2p";
-import {InternalSegmentData} from "./internal-segment";
 import {SpeedApproximator} from "./speed-approximator";
 import { MediaPeerTransportFilterFactory, DefaultMediaPeerTransportFilter } from "./media-peer-transport";
-import { MediaSegment, MediaSegmentsMapData, MediaSegmentStatus } from "./media-segment";
+import { MediaSegment, MediaSegmentsMapData, MediaSegmentStatus, StoredMediaSegment } from "./media-segment";
+import { getPerfNow } from "./perf-now";
 
 const getBrowserRtc = require("get-browser-rtc");
 
@@ -160,10 +160,10 @@ export enum MediaAccessProxyEvents {
 }
 
 export interface IMediaDownloader {
-    on(event: string | symbol, listener: (...args: any[]) => void): this;
+    on(event: string | symbol, listener: (...args: any[]) => void): IMediaDownloader;
     load(segments: MediaSegment[], swarmId: string): void;
-    getSegment(id: string): MediaSegment | undefined;
-    getSettings(): any;
+    getSegment(id: string): MediaSegment | null;
+    getSettings(): MediaAccessProxySettings;
     destroy(): void;
 }
 
@@ -172,7 +172,7 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
     private readonly debug = Debug("p2pml:media-access-proxy");
     private readonly httpManager: MediaDownloaderHttp;
     private readonly p2pManager: MediaDownloaderP2p;
-    private readonly segments: Map<string, InternalSegmentData> = new Map();
+    private readonly segments: Map<string, StoredMediaSegment> = new Map();
     private segmentsQueue: MediaSegment[] = [];
     private httpDownloadProbabilityTimestamp = -999999;
     private readonly speedApproximator = new SpeedApproximator();
@@ -252,13 +252,18 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
         }
     }
 
-    public getSegment(id: string): MediaSegment | undefined {
+    public getSegment(id: string): MediaSegment | null {
         const segment = this.segments.get(id);
         return segment
             ? segment.data
-                ? new MediaSegment(segment.id, segment.url, segment.range, segment.priority, segment.data, segment.downloadSpeed)
-                : undefined
-            : undefined;
+                ? new MediaSegment(segment.id,
+                                    segment.url,
+                                    segment.range,
+                                    segment.priority,
+                                    segment.data,
+                                    segment.downloadSpeed)
+                : null
+            : null;
     }
 
     public getSettings() {
@@ -325,7 +330,7 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
             return updateSegmentsMap;
         }
 
-        const now = this.now();
+        const now = getPerfNow();
         if (now - this.httpDownloadProbabilityTimestamp < this.settings.httpDownloadProbabilityInterval) {
             return updateSegmentsMap;
         } else {
@@ -361,25 +366,25 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
     }
 
     private onPieceBytesDownloaded = (method: "http" | "p2p", bytes: number) => {
-        this.speedApproximator.addBytes(bytes, this.now());
+        this.speedApproximator.addBytes(bytes, getPerfNow());
         this.emit(MediaAccessProxyEvents.PieceBytesDownloaded, method, bytes);
     }
 
     private onPieceBytesUploaded = (method: "p2p", bytes: number) => {
-        this.speedApproximator.addBytes(bytes, this.now());
+        this.speedApproximator.addBytes(bytes, getPerfNow());
         this.emit(MediaAccessProxyEvents.PieceBytesUploaded, method, bytes);
     }
 
     private onSegmentLoaded = (segment: MediaSegment, data: ArrayBuffer) => {
         this.debug("segment loaded", segment.id, segment.url);
 
-        const segmentInternal = new InternalSegmentData(
+        const segmentInternal = new StoredMediaSegment(
             segment.id,
             segment.url,
             segment.range,
             segment.priority,
             data,
-            this.speedApproximator.getSpeed(this.now())
+            this.speedApproximator.getSpeed(getPerfNow())
         );
 
         this.segments.set(segment.id, segmentInternal);
@@ -393,8 +398,8 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
         this.processSegmentsQueue();
     }
 
-    private emitSegmentLoaded(segmentInternal: InternalSegmentData): void {
-        segmentInternal.lastAccessed = this.now();
+    private emitSegmentLoaded(segmentInternal: StoredMediaSegment): void {
+        segmentInternal.lastAccessed = getPerfNow();
 
         const segment = new MediaSegment(
             segmentInternal.id,
@@ -411,7 +416,7 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
     private createSegmentsMap(): MediaSegmentsMapData {
         const segmentsMap: MediaSegmentsMapData = [];
         this.segments.forEach((value, key) => segmentsMap.push([key, MediaSegmentStatus.Loaded]));
-        this.httpManager.getActiveDownloads().forEach((value, key) => segmentsMap.push([key, MediaSegmentStatus.LoadingByHttp]));
+        this.httpManager.getActiveDownloads().forEach((value, key) => segmentsMap.push([key, MediaSegmentStatus.LoadingViaHttp]));
         return segmentsMap;
     }
 
@@ -426,10 +431,10 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
 
     private collectGarbage(): boolean {
         const segmentsToDelete: string[] = [];
-        const remainingSegments: InternalSegmentData[] = [];
+        const remainingSegments: StoredMediaSegment[] = [];
 
         // Delete old segments
-        const now = this.now();
+        const now = getPerfNow();
         this.segments.forEach(segment => {
             if (now - segment.lastAccessed > this.settings.cachedSegmentExpiration) {
                 segmentsToDelete.push(segment.id);
@@ -457,10 +462,4 @@ export class MediaAccessProxy extends EventEmitter implements IMediaDownloader {
         segmentsToDelete.forEach(id => this.segments.delete(id));
         return segmentsToDelete.length > 0;
     }
-
-    private now() {
-        return performance.now();
-    }
-
-} // end of HybridLoader
-
+}

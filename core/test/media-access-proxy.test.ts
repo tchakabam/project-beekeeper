@@ -80,7 +80,6 @@ describe("MediaAccessProxy", () => {
 
     MediaAccessProxy.prototype["createHttpDownloader"] = () => instance(httpMediaManger);
     MediaAccessProxy.prototype["createP2PDownloader"] = () => instance(p2pMediaManager);
-    MediaAccessProxy.prototype["now"] = () => Date.now();
 
     it("load", () => {
 

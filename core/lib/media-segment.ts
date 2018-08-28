@@ -9,8 +9,10 @@ export class MediaSegmentsMap extends Map<string, MediaSegmentStatus> {
 }
 
 export enum MediaSegmentStatus {
+    Void = "void",
     Loaded = "loaded",
-    LoadingByHttp = "loading_by_http"
+    LoadingViaP2p = "loading_via_p2p",
+    LoadingViaHttp = "loading_via_http"
 }
 
 export class MediaSegment {
@@ -23,3 +25,8 @@ export class MediaSegment {
         readonly downloadSpeed = 0
     ) {}
 }
+
+export class StoredMediaSegment extends MediaSegment {
+    public lastAccessed = 0;
+}
+
