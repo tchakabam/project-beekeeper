@@ -14,7 +14,7 @@ var DemoApp = (function () {
             document.querySelector("#error-hls-js").classList.remove("hide");
         }
 
-        if (!p2pml.core.HybridLoader.isSupported()) {
+        if (!p2pml.core.MediaAccessProxy.isSupported()) {
             document.querySelector("#error-webrtc-data-channels").classList.remove("hide");
         }
 
