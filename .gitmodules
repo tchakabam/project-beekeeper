@@ -1,6 +1,3 @@
-[submodule "multimedia.js"]
-	path = ext-mod/multimedia.js
-	url = git@github.com:tchakabam/multimedia.js.git
 [submodule "ext-mod/emliri-es-libs"]
 	path = ext-mod/emliri-es-libs
 	url = git@github.com:tchakabam/emliri-es-libs.git
