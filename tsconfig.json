@@ -3,18 +3,18 @@
     "target": "es5",
     "module": "commonjs",
     "lib": ["dom", "es6"],
-    "strict": true,
+    "strict": false,
     "moduleResolution": "node",
     "declaration": true,
     "outDir": "./dist",
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "strictNullChecks": true,
+    "strictNullChecks": false,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noImplicitAny": true
+    "noImplicitThis": false,
+    "noImplicitAny": false
   },
   "compileOnSave": true,
   "include": [
@@ -22,7 +22,7 @@
     "plugins/**/*"
   ],
   "exclude": [
-    "node_modules",
+    //"node_modules",
     "*.test.ts"
   ]
 }
