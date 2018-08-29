@@ -1,0 +1,3 @@
+[submodule "multimedia.js"]
+	path = multimedia.js
+	url = git@github.com:tchakabam/multimedia.js.git
