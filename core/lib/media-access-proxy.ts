@@ -100,6 +100,8 @@ export type MediaAccessProxySettings = {
     mediaPeerTransportFilterFactory: MediaPeerTransportFilterFactory
 }
 
+export type OptMediaProxyAccessSettings = Partial<MediaAccessProxySettings>;
+
 export const defaultSettings: MediaAccessProxySettings = {
     cachedSegmentExpiration: 5 * 60 * 1000,
 

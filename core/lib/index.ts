@@ -16,7 +16,8 @@
 
 declare var __VERSION__: any;
 
-export {MediaAccessProxy, IMediaDownloader, MediaAccessProxyEvents as Events} from "./media-access-proxy";
+export {MediaAccessProxy, MediaAccessProxySettings, OptMediaProxyAccessSettings,
+    IMediaDownloader, MediaAccessProxyEvents as Events} from "./media-access-proxy";
 
 export {MediaSegment} from './media-segment'
 

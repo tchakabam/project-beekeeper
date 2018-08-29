@@ -1,4 +1,4 @@
-var engine = new P2pMediaLoaderVirtualEngine.Engine()
+var engine = new P2pMediaLoaderUniversalEngine.Engine()
 
 window.p2pEngine = engine;
 
