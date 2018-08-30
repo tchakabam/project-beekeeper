@@ -20,6 +20,7 @@ export enum BKResourceStatus {
 export class BKResource extends Resource {
 
     lastAccessedAt = 0;
+    swarmId: string;
     status: BKResourceStatus = BKResourceStatus.Void;
 
     get id(): string { return this.uri; }

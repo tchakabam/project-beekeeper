@@ -46,7 +46,9 @@ export class P2PMediaDownloaderRequest implements IResourceRequest {
             this.options.byteRange
         );
 
-        this.downloader.load([segment], this.swarmId);
+        segment.swarmId = this.swarmId;
+
+        this.downloader.enqueue(segment);
 
         this._resourceRequestCallback = this.options.requestCallback;
         this._requestCreated = Date.now();

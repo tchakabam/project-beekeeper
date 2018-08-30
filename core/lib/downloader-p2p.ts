@@ -145,7 +145,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         peerCandidatesById.push(peer);
     }
 
-    public download(segment: BKResource): boolean {
+    public enqueue(segment: BKResource): boolean {
         if (this.isDownloading(segment)) {
             return false;
         }
@@ -206,6 +206,9 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
     }
 
     public sendSegmentsMapToAll(segmentsMap: BKResourceMapData): void {
+
+        this.debug("sending chunk-map to all")
+
         this.peers.forEach((peer) => peer.sendSegmentsMap(segmentsMap));
     }
 
@@ -216,7 +219,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    public getOvrallSegmentsMap(): Map<string, BKResourceStatus> {
+    public getOverallSegmentsMap(): Map<string, BKResourceStatus> {
         const overallSegmentsMap: Map<string, BKResourceStatus> = new Map();
         this.peers.forEach(peer => peer.getSegmentsMap().forEach((segmentStatus, segmentId) => {
             if (segmentStatus === BKResourceStatus.Loaded) {

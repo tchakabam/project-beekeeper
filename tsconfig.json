@@ -14,7 +14,8 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
     "noImplicitThis": false,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "sourceMap": true
   },
   "compileOnSave": true,
   "include": [

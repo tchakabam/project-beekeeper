@@ -20,21 +20,23 @@ import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 import { BKResource } from "./bk-resource";
 
 import {Queue} from "../../ext-mod/emliri-es-libs/rialto/lib/queue";
-import {Resource} from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
+import {Resource, ResourceEvents} from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
 
-const debug = Debug("p2pml:media-downloader-http");
+const debug = Debug("p2pml:downloader-http");
 
-export class DownloaderHttp extends StringlyTypedEventEmitter<
-    "segment-loaded" | "segment-error" | "bytes-downloaded"
-> {
+export class DownloaderHttp
+    extends StringlyTypedEventEmitter<"segment-loaded" | "segment-error" | "bytes-downloaded"> {
 
-    private _queue: Queue<Resource> = new Queue();
+    private _queue: Queue<BKResource> = new Queue();
+    private _fetching: boolean = false;
 
     public constructor() {
         super();
     }
 
     public enqueue(res: BKResource): void {
+
+        debug("enqueue", res)
 
         if (this._queue.containsAtLeastOnce(res)) {
             throw new Error("Download already enqueued resource: " + res.getUrl());
@@ -47,6 +49,14 @@ export class DownloaderHttp extends StringlyTypedEventEmitter<
         });
 
         this._queue.enqueue(res);
+
+        if (!this._fetching) {
+            this._fetchNext();
+        }
+
+        res.on(ResourceEvents.FETCH_PROGRESS, () => {
+            this.emit("bytes-downloaded", res);
+        })
     }
 
     public abort(resource: BKResource): void {
@@ -63,6 +73,26 @@ export class DownloaderHttp extends StringlyTypedEventEmitter<
             res.abort();
         });
         this._queue = null;
+    }
+
+    public getQueuedList(): BKResource[] {
+        return this._queue.getArray();
+    }
+
+    private _fetchNext() {
+        const nextResource: Resource = this._queue.pop();
+        if (!nextResource) {
+            this._fetching = false;
+            return;
+        }
+
+        this._fetching = true;
+        nextResource.fetch().then((res: Resource) => {
+            this.emit("segment-loaded", res);
+            this._fetchNext();
+        }).catch((err: any) => {
+            this.emit("segment-error", err);
+        })
     }
 
 }

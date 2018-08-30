@@ -12,7 +12,6 @@ import {
 import { HlsAccessProxy } from "./hls-access-proxy";
 
 import * as Debug from "debug";
-import { P2PDownloaderQueue } from "./p2p-downloader-queue";
 
 const debug = Debug("p2pml:universal:engine");
 
@@ -31,7 +30,7 @@ export class Engine extends EventEmitter {
 
         debug("created universal adaptive media p2p engine", settings);
 
-        this.downloader = new P2PDownloaderQueue(new BKAccessProxy(settings));
+        this.downloader = new BKAccessProxy(settings);
         this.hlsProxy = new HlsAccessProxy(this.downloader);
 
         // forward all events
@@ -42,7 +41,7 @@ export class Engine extends EventEmitter {
     }
 
     public destroy() {
-        this.downloader.destroy();
+        this.downloader.terminate();
     }
 
     public setSource(url: string) {
@@ -51,6 +50,17 @@ export class Engine extends EventEmitter {
         }
 
         this.sourceUrl = url;
-        this.hlsProxy.setSource(url);
+
+        debug("set source", url)
+
+        this.downloader.setSwarmId(this.hlsProxy.getSwarmIdForVariantPlaylist(url));
+    }
+
+    public loadSource() {
+        if (!this.sourceUrl) {
+            throw new Error("Np source URL set");
+        }
+
+        this.hlsProxy.setSource(this.sourceUrl);
     }
 }

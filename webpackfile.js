@@ -34,7 +34,5 @@ function makeConfig({libName, entry, mode}) {
 
 module.exports = [
     makeConfig({libName: 'P2pMediaLoaderCore', entry: './core/lib/index', mode: 'development'}),
-    makeConfig({libName: 'P2pMediaLoaderHlsjs', entry: './engines/hlsjs/lib/index', mode: 'development'}),
-    makeConfig({libName: 'P2pMediaLoaderShaka', entry: './engines/shaka/lib/index', mode: 'development'}),
     makeConfig({libName: 'P2pMediaLoaderUniversalEngine', entry: './engines/universal-engine/lib/index', mode: 'development'}),
 ];

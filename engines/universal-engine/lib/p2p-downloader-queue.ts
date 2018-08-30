@@ -15,6 +15,7 @@ const debug = Debug("p2pml:universal:downloader-queue");
  * This object allows to maintain that queue and have other components "just" request _one_ segment
  * independent of that there are other requests happening or not.
  */
+/*
 export class P2PDownloaderQueue implements BK_IProxy {
 
     private _queue: Queue<BKResource> = new Queue();
@@ -29,13 +30,16 @@ export class P2PDownloaderQueue implements BK_IProxy {
         return this._downloader.on(event, listener);
     }
 
-    load(segments: BKResource[], swarmId: string): void {
-        segments.reverse().forEach((segment) => this._queue.enqueue(segment));
-        this._downloader.load(this._queue.getArray(), swarmId);
+    enqueue(res: BKResource): void {
+        this._downloader.enqueue(res);
     }
 
-    destroy(): void {
-        this._downloader.destroy();
+    abort(resource: BKResource): void {
+        this._downloader.abort(resource);
+    }
+
+    terminate(): void {
+        this._downloader.terminate()
     }
 
     private _removeResourceFromQueue(resource: BKResource) {
@@ -65,3 +69,4 @@ export class P2PDownloaderQueue implements BK_IProxy {
         this._removeResourceFromQueue(resource);
     }
 }
+*/

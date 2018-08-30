@@ -25,7 +25,6 @@ import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from "./peer-t
 import { BKResource, BKResourceMapData, BKResourceStatus } from "./bk-resource";
 
 import { getPerfNow } from "./perf-now";
-import { ByteRange } from "../../ext-mod/emliri-es-libs/rialto/lib/byte-range";
 
 const getBrowserRtc = require("get-browser-rtc");
 
@@ -159,18 +158,19 @@ export enum BKAccessProxyEvents {
 
 export interface BK_IProxy {
     on(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
-    load(segments: BKResource[], swarmId: string): void;
-    destroy(): void;
+    enqueue(resource: BKResource): void;
+    abort(resource: BKResource): void;
+    terminate(): void;
+    setSwarmId(swarmId: string);
 }
 
 export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
-    private readonly debug = Debug("p2pml:media-access-proxy");
+    private readonly debug = Debug("p2pml:access-proxy");
 
     private readonly _httpDownloader: DownloaderHttp;
     private readonly _p2pDownloader: DownloaderP2p;
     private readonly _storedSegments: Map<string, BKResource> = new Map();
-    private _loadingSegmentsQueue: BKResource[] = [];
 
     private readonly speedApproximator = new SpeedApproximator();
     private readonly settings: BKAccessProxySettings;
@@ -194,98 +194,48 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this._p2pDownloader = new DownloaderP2p(this._storedSegments, this.settings);
         this._p2pDownloader.on("segment-loaded", this.onSegmentLoaded);
         this._p2pDownloader.on("segment-error", this.onSegmentError);
-        this._p2pDownloader.on("peer-data-updated", () => this._processSegmentsQueue());
+
         this._p2pDownloader.on("bytes-downloaded", (bytes: number) => this.onPieceBytesDownloaded("p2p", bytes));
         this._p2pDownloader.on("bytes-uploaded", (bytes: number) => this.onPieceBytesUploaded("p2p", bytes));
+
         this._p2pDownloader.on("peer-connected", this.onPeerConnect);
         this._p2pDownloader.on("peer-closed", this.onPeerClose);
+        this._p2pDownloader.on("peer-data-updated", this.onPeerDataUpdated);
     }
 
-    public load(segments: BKResource[], swarmId: string): void {
+    public enqueue(resource: BKResource): void {
+        this.debug("enqueueing:", resource);
 
         // update Swarm ID
-        this._p2pDownloader.setSwarmId(swarmId);
+        this._p2pDownloader.setSwarmId(resource.swarmId);
 
-        this.debug("load segments", segments, this._loadingSegmentsQueue);
-
-        let updateSegmentsMap = false;
-
-        // stop all http requests and p2p downloads for segments that are not in the new load
-
-        /*
-
-        for (const segment of this._loadingSegmentsQueue) {
-            if (!segments.find(f => f.uri == segment.uri)) {
-                this.debug("remove segment", segment.uri);
-                if (this._httpDownloader.isDownloading(segment)) {
-                    updateSegmentsMap = true;
-                    this._httpDownloader.abort(segment);
-                } else {
-                    this._p2pDownloader.abort(segment);
-                }
-                this.emit(MediaAccessProxyEvents.SegmentAbort, segment);
-            }
-        }
-
-        // log if segment was added
-        for (const segment of segments) {
-            if (!this._loadingSegmentsQueue.find(f => f.uri == segment.uri)) {
-                this.debug("add segment", segment.uri);
-            }
-        }
-        */
-
-        // update segment queue
-        this._loadingSegmentsQueue = segments;
-
-        // run main processing algorithm
-        updateSegmentsMap = this._processSegmentsQueue() || updateSegmentsMap;
-
-        // collect garbage
-        updateSegmentsMap = this._collectGarbage() || updateSegmentsMap;
-
-        if (updateSegmentsMap) {
-            this.debug("sending segments map to all")
-            this._p2pDownloader.sendSegmentsMapToAll(this._createSegmentsMap());
+        if (this._p2pDownloader.enqueue(resource)) {
+            this.debug("enqueud to p2p downloader")
+        } else {
+            this.debug("falling back to http downloader")
+            this._httpDownloader.enqueue(resource);
         }
     }
 
-    public destroy(): void {
-        this._loadingSegmentsQueue = [];
+    public abort(resource: BKResource) {
+        this._httpDownloader.abort(resource);
+    }
+
+    public setSwarmId(swarmId: string) {
+        this._p2pDownloader.setSwarmId(swarmId);
+    }
+
+    public terminate(): void {
         this._httpDownloader.destroy();
         this._p2pDownloader.destroy();
         this._storedSegments.clear();
     }
 
-    private _processSegmentsQueue(): boolean {
-
-        this._loadingSegmentsQueue.forEach((resource: BKResource) => {
-
-            /*
-            let isHttpDownloading = this._httpDownloader.isDownloading(resource);
-            let isP2PDownloading = this._p2pDownloader.isDownloading(resource);
-
-            if (!isHttpDownloading && !isP2PDownloading) {
-                this._httpDownloader.download(resource);
-            }
-            */
-        })
-
-        return true;
-    }
-
-    private _collectGarbage(): boolean {
-        return true;
-    }
-
     private _createSegmentsMap(): BKResourceMapData {
-        /*
         const segmentsMap: BKResourceMapData = [];
-        this._storedSegments.forEach((value, key) => segmentsMap.push([key, BKResourceStatus.Loaded]));
-        this._httpDownloader.getActiveDownloads().forEach((value, key) => segmentsMap.push([key, BKResourceStatus.LoadingViaHttp]));
+        this._storedSegments.forEach((res) => segmentsMap.push([res.id, BKResourceStatus.Loaded]));
+        this._httpDownloader.getQueuedList().forEach((res: BKResource) => segmentsMap.push([res.id, BKResourceStatus.LoadingViaHttp]));
         return segmentsMap;
-        */
-       return [];
     }
 
     // Event handlers
@@ -309,14 +259,11 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         this.emit(BKAccessProxyEvents.SegmentLoaded, segment);
 
-        this._processSegmentsQueue();
-
         this._p2pDownloader.sendSegmentsMapToAll(this._createSegmentsMap());
     }
 
     private onSegmentError = (segment: BKResource, event: any) => {
         this.emit(BKAccessProxyEvents.SegmentError, segment, event);
-        this._processSegmentsQueue();
     }
 
     private onPeerConnect = (peer: {id: string}) => {
@@ -326,5 +273,9 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
     private onPeerClose = (peerId: string) => {
         this.emit(BKAccessProxyEvents.PeerClose, peerId);
+    }
+
+    private onPeerDataUpdated = () => {
+        this.debug("peer data updated");
     }
 }

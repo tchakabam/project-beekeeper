@@ -40,6 +40,19 @@ export class HlsAccessProxy {
         this._processM3u8File(url);
     }
 
+    public getSwarmIdForVariantPlaylist(manifestUrl: string): string {
+        if (this._swarmIdCache[manifestUrl]) {
+            debug(`swarm-ID cache hit: ${this._swarmIdCache[manifestUrl]}`);
+            return this._swarmIdCache[manifestUrl];
+        }
+
+        debug(`creating swarm ID for manifest URL: ${manifestUrl}`);
+        const swarmId = SWARM_URN_PREFIX + ":" + createHash("sha1").update(manifestUrl).digest("hex");
+        debug(`created swarm ID: ${swarmId}`);
+        this._swarmIdCache[manifestUrl] = swarmId;
+        return swarmId;
+    }
+
     private _createResourceRequestMaker(swarmId: string): ResourceRequestMaker {
         debug(`new ResourceRequestMaker for ${swarmId}`)
         return ((url: string, requestOpts: ResourceRequestOptions) => this._createResourceRequest(swarmId, url, requestOpts));
@@ -54,12 +67,12 @@ export class HlsAccessProxy {
 
         m3u8.fetch().then(() => {
           m3u8.parse().then((adaptiveMediaPeriods: AdaptiveMediaPeriod[]) => {
-                this._onAdaptiveMediaPeriodsParsed(adaptiveMediaPeriods);
+                this._onAdaptiveMediaPeriodsParsed(url, adaptiveMediaPeriods);
             })
         });
     }
 
-    private _onAdaptiveMediaPeriodsParsed(adaptiveMediaPeriods: AdaptiveMediaPeriod[]) {
+    private _onAdaptiveMediaPeriodsParsed(url: string, adaptiveMediaPeriods: AdaptiveMediaPeriod[]) {
         // may get the first media of the first set in this period
         const media: AdaptiveMedia = adaptiveMediaPeriods[0].getDefaultMedia();
 
@@ -67,7 +80,9 @@ export class HlsAccessProxy {
 
             media.segments.forEach((segment: MediaSegment) => {
 
-                const swarmId = this._getSwarmIdForVariantPlaylist(media.getUrl());
+                //const swarmId = this._getSwarmIdForVariantPlaylist(media.getUrl());
+
+                const swarmId = this.getSwarmIdForVariantPlaylist(url);
 
                 segment.setRequestMaker(this._createResourceRequestMaker(swarmId));
             })
@@ -86,19 +101,6 @@ export class HlsAccessProxy {
 
     private _onSegmentBuffered(segment: MediaSegment) {
         debug("segment buffered:", segment)
-    }
-
-    private _getSwarmIdForVariantPlaylist(manifestUrl: string): string {
-        if (this._swarmIdCache[manifestUrl]) {
-            debug(`swarm-ID cache hit: ${this._swarmIdCache[manifestUrl]}`);
-            return this._swarmIdCache[manifestUrl];
-        }
-
-        debug(`creating swarm ID for manifest URL: ${manifestUrl}`);
-        const swarmId = SWARM_URN_PREFIX + ":" + createHash("sha1").update(manifestUrl).digest("hex");
-        debug(`created swarm ID: ${swarmId}`);
-        this._swarmIdCache[manifestUrl] = swarmId;
-        return swarmId;
     }
 }
 
