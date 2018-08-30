@@ -16,10 +16,12 @@
 
 declare var __VERSION__: any;
 
-export {MediaAccessProxy, MediaAccessProxySettings, OptMediaProxyAccessSettings,
-    IMediaDownloader, MediaAccessProxyEvents as Events} from "./media-access-proxy";
+export {BKAccessProxy,
+    BKAccessProxySettings,
+    BKOptAccessProxySettings,
+    BK_IProxy, BKAccessProxyEvents as Events} from "./bk-access-proxy";
 
-export {MediaSegment} from './media-segment'
+export {BKResource} from './bk-resource'
 
 export const version = __VERSION__;
 

@@ -15,10 +15,13 @@
  */
 
 import * as Debug from "debug";
+
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 import { detectSafari11_0 } from "./detect-safari-11";
-import { IMediaPeerTransport, MediaPeerCommandType, MediaPeerTransportCommand, decodeMediaPeerTransportCommand } from "./media-peer-transport";
-import { MediaSegmentsMap, MediaSegmentStatus, MediaSegmentsMapData } from "./media-segment";
+
+import { IPeerTransport, PeerCommandType, PeerTransportCommand, decodeMediaPeerTransportCommand } from "./peer-transport";
+
+import { BKResourceMap, BKResourceStatus, BKResourceMapData } from "./bk-resource";
 
 class DownloadingSegment {
     public bytesDownloaded = 0;
@@ -26,7 +29,7 @@ class DownloadingSegment {
     constructor(readonly id: string, readonly size: number) {}
 }
 
-export class MediaPeer extends StringlyTypedEventEmitter<
+export class Peer extends StringlyTypedEventEmitter<
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |
     "segment-request" | "segment-absent" |
@@ -40,13 +43,13 @@ export class MediaPeer extends StringlyTypedEventEmitter<
 
     private downloadingSegmentId: string | null = null;
     private downloadingSegment: DownloadingSegment | null = null;
-    private segmentsMap: MediaSegmentsMap = MediaSegmentsMap.create();
+    private segmentsMap: BKResourceMap = BKResourceMap.create();
     private debug = Debug("p2pml:media-peer");
     private timer: number | null = null;
     private isSafari11_0: boolean = false;
 
     constructor(
-            private readonly peer: IMediaPeerTransport,
+            private readonly peer: IPeerTransport,
             readonly settings: {
                 p2pSegmentDownloadTimeout: number,
                 webRtcMaxMessageSize: number
@@ -125,19 +128,19 @@ export class MediaPeer extends StringlyTypedEventEmitter<
         this.debug("peer receive command", this.id, command, this);
 
         switch (command.command) {
-            case MediaPeerCommandType.SegmentsMap:
+            case PeerCommandType.SegmentsMap:
                 if (!command.segments) {
                     throw new Error("No `segments` found in data");
                 }
-                this.segmentsMap = MediaSegmentsMap.create(command.segments);
+                this.segmentsMap = BKResourceMap.create(command.segments);
                 this.emit("data-updated");
                 break;
 
-            case MediaPeerCommandType.SegmentRequest:
+            case PeerCommandType.SegmentRequest:
                 this.emit("segment-request", this, command.segment_id);
                 break;
 
-            case MediaPeerCommandType.SegmentData:
+            case PeerCommandType.SegmentData:
                 if (this.downloadingSegmentId === command.segment_id) {
                     if (!command.segment_size) {
                         throw new Error("No `segment_size` found in data");
@@ -147,7 +150,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
                 }
                 break;
 
-            case MediaPeerCommandType.SegmentAbsent:
+            case PeerCommandType.SegmentAbsent:
                 if (this.downloadingSegmentId === command.segment_id) {
                     this.terminateSegmentRequest();
                     this.segmentsMap.delete(command.segment_id);
@@ -155,7 +158,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
                 }
                 break;
 
-            case MediaPeerCommandType.CancelSegmentRequest:
+            case PeerCommandType.CancelSegmentRequest:
                 // TODO: peer stop sending buffer
                 break;
 
@@ -164,7 +167,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
         }
     }
 
-    private sendCommand(command: MediaPeerTransportCommand): void {
+    private sendCommand(command: PeerTransportCommand): void {
         this.debug("peer send command", this.id, command, this);
         this.peer.write(JSON.stringify(command));
     }
@@ -179,17 +182,17 @@ export class MediaPeer extends StringlyTypedEventEmitter<
         return this.downloadingSegmentId;
     }
 
-    public getSegmentsMap(): Map<string, MediaSegmentStatus> {
+    public getSegmentsMap(): Map<string, BKResourceStatus> {
         return this.segmentsMap;
     }
 
-    public sendSegmentsMap(segments: MediaSegmentsMapData): void {
-        this.sendCommand({"command": MediaPeerCommandType.SegmentsMap, "segments": segments});
+    public sendSegmentsMap(segments: BKResourceMapData): void {
+        this.sendCommand({"command": PeerCommandType.SegmentsMap, "segments": segments});
     }
 
     public sendSegmentData(segmentId: string, data: ArrayBuffer): void {
         this.sendCommand({
-            "command": MediaPeerCommandType.SegmentData,
+            "command": PeerCommandType.SegmentData,
             "segment_id": segmentId,
             "segment_size": data.byteLength
         });
@@ -210,7 +213,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
     }
 
     public sendSegmentAbsent(segmentId: string): void {
-        this.sendCommand({"command": MediaPeerCommandType.SegmentAbsent, "segment_id": segmentId});
+        this.sendCommand({"command": PeerCommandType.SegmentAbsent, "segment_id": segmentId});
     }
 
     public requestSegment(segmentId: string): void {
@@ -218,7 +221,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
             throw new Error("A segment is already downloading: " + this.downloadingSegmentId);
         }
 
-        this.sendCommand({"command": MediaPeerCommandType.SegmentRequest, "segment_id": segmentId});
+        this.sendCommand({"command": PeerCommandType.SegmentRequest, "segment_id": segmentId});
         this.downloadingSegmentId = segmentId;
         this.runResponseTimeoutTimer();
     }
@@ -227,7 +230,7 @@ export class MediaPeer extends StringlyTypedEventEmitter<
         if (this.downloadingSegmentId) {
             const segmentId = this.downloadingSegmentId;
             this.terminateSegmentRequest();
-            this.sendCommand({"command": MediaPeerCommandType.CancelSegmentRequest, "segment_id": segmentId});
+            this.sendCommand({"command": PeerCommandType.CancelSegmentRequest, "segment_id": segmentId});
         }
     }
 

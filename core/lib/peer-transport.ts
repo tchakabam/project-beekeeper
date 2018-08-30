@@ -1,11 +1,11 @@
 import { StringlyTypedEventEmitter } from "./stringly-typed-event-emitter";
 
 import * as Debug from "debug";
-import { MediaSegmentsMapData } from "./media-segment";
+import { BKResourceMapData } from "./bk-resource";
 
 const debug = Debug("p2pml:media-peer-transport");
 
-export enum MediaPeerCommandType {
+export enum PeerCommandType {
     SegmentData = "segment_data",
     SegmentAbsent = "segment_absent",
     SegmentsMap = "segments_map",
@@ -13,15 +13,15 @@ export enum MediaPeerCommandType {
     CancelSegmentRequest = "cancel_segment_request",
 }
 
-export type MediaPeerTransportCommand = {
-    command: MediaPeerCommandType
+export type PeerTransportCommand = {
+    command: PeerCommandType
     segment_id?: string
     segment_size?: number
-    segments?: MediaSegmentsMapData
+    segments?: BKResourceMapData
 }
 
 // TODO: marshall parsed data
-export function decodeMediaPeerTransportCommand(data: ArrayBuffer): MediaPeerTransportCommand | null {
+export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTransportCommand | null {
     const bytes = new Uint8Array(data);
     // Serialized JSON string check by first, second and last characters: '{" .... }'
     if (bytes[0] == 123 && bytes[1] == 34 && bytes[data.byteLength - 1] == 125) {
@@ -33,7 +33,7 @@ export function decodeMediaPeerTransportCommand(data: ArrayBuffer): MediaPeerTra
     return null;
 }
 
-export interface IMediaPeerTransport {
+export interface IPeerTransport {
     readonly id: string;
     readonly remoteAddress: string;
 
@@ -46,13 +46,13 @@ export interface IMediaPeerTransport {
     destroy(): void;
 }
 
-export type MediaPeerTransportFilterFactory = (transport: IMediaPeerTransport) => IMediaPeerTransport;
+export type PeerTransportFilterFactory = (transport: IPeerTransport) => IPeerTransport;
 
-export class DefaultMediaPeerTransportFilter
+export class DefaultPeerTransportFilter
     extends StringlyTypedEventEmitter<"connect" | "close" | "error" | "data">
-    implements IMediaPeerTransport {
+    implements IPeerTransport {
 
-    constructor(private _transport: IMediaPeerTransport) {
+    constructor(private _transport: IPeerTransport) {
         super();
 
         this._transport.on("connect", () => this._onConnect());

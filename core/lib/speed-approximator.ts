@@ -37,7 +37,7 @@ export class SpeedApproximator {
         this.lastSpeed.push(new NumberWithTime(this.currentBytesSum / SMOOTH_INTERVAL, timeStamp));
     }
 
-    // in bytes per millisecond
+    // in bytes per millisecond (SH: kbyte/s ..? :))
     public getSpeed(timeStamp: number): number {
         while (this.lastSpeed.length != 0 && timeStamp - this.lastSpeed[0].timeStamp > MEASURE_INTERVAL) {
             this.lastSpeed.shift();

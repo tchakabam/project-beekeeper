@@ -20,17 +20,18 @@ import * as Debug from "debug";
 
 import {Client} from "bittorrent-tracker";
 import {createHash} from "crypto";
+
 import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
-import {MediaPeer} from "./media-peer";
-import { MediaSegment, MediaSegmentStatus, MediaSegmentsMapData, StoredMediaSegment } from "./media-segment";
-import { MediaPeerTransportFilterFactory, IMediaPeerTransport } from "./media-peer-transport";
+import {Peer} from "./peer";
+import { BKResource, BKResourceStatus, BKResourceMapData } from "./bk-resource";
+import { PeerTransportFilterFactory, IPeerTransport } from "./peer-transport";
 
 const PEER_PROTOCOL_VERSION = 1;
 
-class PeerSegmentRequest {
+class PeerResourceRequest {
     constructor(
         readonly peerId: string,
-        readonly segment: MediaSegment
+        readonly segment: BKResource
     ) {}
 }
 
@@ -41,28 +42,28 @@ export interface ITrackerClient  {
     destroy(): void;
 }
 
-export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
+export class DownloaderP2p extends StringlyTypedEventEmitter<
     "peer-connected" | "peer-closed" | "peer-data-updated" |
     "segment-loaded" | "segment-error" |
     "bytes-downloaded" | "bytes-uploaded"
 > {
 
     private trackerClient: ITrackerClient | null = null;
-    private peers: Map<string, MediaPeer> = new Map();
-    private peerCandidates: Map<string, MediaPeer[]> = new Map();
-    private peerSegmentRequests: Map<string, PeerSegmentRequest> = new Map();
+    private peers: Map<string, Peer> = new Map();
+    private peerCandidates: Map<string, Peer[]> = new Map();
+    private peerSegmentRequests: Map<string, PeerResourceRequest> = new Map();
     private swarmId: string | null = null;
     private peerId: string;
-    private debug = Debug("p2pml:p2p-media-manager");
+    private debug = Debug("p2pml:media-downloader-p2p");
 
     public constructor(
-            readonly cachedSegments: Map<string, StoredMediaSegment>,
+            readonly cachedSegments: Map<string, BKResource>,
             readonly settings: {
                 useP2P: boolean,
                 trackerAnnounce: string[],
                 p2pSegmentDownloadTimeout: number,
                 webRtcMaxMessageSize: number,
-                mediaPeerTransportFilterFactory: MediaPeerTransportFilterFactory
+                mediaPeerTransportFilterFactory: PeerTransportFilterFactory
                 rtcConfig?: RTCConfiguration,
             }) {
         super();
@@ -110,7 +111,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         this.trackerClient.start();
     }
 
-    private onTrackerPeer(trackerPeer: IMediaPeerTransport): void {
+    private onTrackerPeer(trackerPeer: IPeerTransport): void {
         this.debug("tracker peer", trackerPeer.id, trackerPeer);
 
         if (this.peers.has(trackerPeer.id)) {
@@ -120,8 +121,8 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         }
 
         const getTransportWrapper = this.settings.mediaPeerTransportFilterFactory;
-        const mediaPeerTransport: IMediaPeerTransport = getTransportWrapper(trackerPeer);
-        const peer = new MediaPeer(mediaPeerTransport, this.settings);
+        const mediaPeerTransport: IPeerTransport = getTransportWrapper(trackerPeer);
+        const peer = new Peer(mediaPeerTransport, this.settings);
 
         peer.on("connect", this.onPeerConnect);
         peer.on("close", this.onPeerClose);
@@ -144,7 +145,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         peerCandidatesById.push(peer);
     }
 
-    public download(segment: MediaSegment): boolean {
+    public download(segment: BKResource): boolean {
         if (this.isDownloading(segment)) {
             return false;
         }
@@ -153,9 +154,9 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         for (let entry = entries.next(); !entry.done; entry = entries.next()) {
             const peer = entry.value;
             if ((peer.getDownloadingSegmentId() == null) &&
-                    (peer.getSegmentsMap().get(segment.id) === MediaSegmentStatus.Loaded)) {
+                    (peer.getSegmentsMap().get(segment.id) === BKResourceStatus.Loaded)) {
                 peer.requestSegment(segment.id);
-                this.peerSegmentRequests.set(segment.id, new PeerSegmentRequest(peer.id, segment));
+                this.peerSegmentRequests.set(segment.id, new PeerResourceRequest(peer.id, segment));
                 return true;
             }
         }
@@ -163,7 +164,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         return false;
     }
 
-    public abort(segment: MediaSegment): void {
+    public abort(segment: BKResource): void {
         const peerSegmentRequest = this.peerSegmentRequests.get(segment.id);
         if (peerSegmentRequest) {
             const peer = this.peers.get(peerSegmentRequest.peerId);
@@ -174,7 +175,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    public isDownloading(segment: MediaSegment): boolean {
+    public isDownloading(segment: BKResource): boolean {
         return this.peerSegmentRequests.has(segment.id);
     }
 
@@ -204,24 +205,24 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         this.peerCandidates.clear();
     }
 
-    public sendSegmentsMapToAll(segmentsMap: MediaSegmentsMapData): void {
+    public sendSegmentsMapToAll(segmentsMap: BKResourceMapData): void {
         this.peers.forEach((peer) => peer.sendSegmentsMap(segmentsMap));
     }
 
-    public sendSegmentsMap(peerId: string, segmentsMap: MediaSegmentsMapData): void {
+    public sendSegmentsMap(peerId: string, segmentsMap: BKResourceMapData): void {
         const peer = this.peers.get(peerId);
         if (peer) {
             peer.sendSegmentsMap(segmentsMap);
         }
     }
 
-    public getOvrallSegmentsMap(): Map<string, MediaSegmentStatus> {
-        const overallSegmentsMap: Map<string, MediaSegmentStatus> = new Map();
+    public getOvrallSegmentsMap(): Map<string, BKResourceStatus> {
+        const overallSegmentsMap: Map<string, BKResourceStatus> = new Map();
         this.peers.forEach(peer => peer.getSegmentsMap().forEach((segmentStatus, segmentId) => {
-            if (segmentStatus === MediaSegmentStatus.Loaded) {
-                overallSegmentsMap.set(segmentId, MediaSegmentStatus.Loaded);
+            if (segmentStatus === BKResourceStatus.Loaded) {
+                overallSegmentsMap.set(segmentId, BKResourceStatus.Loaded);
             } else if (!overallSegmentsMap.get(segmentId)) {
-                overallSegmentsMap.set(segmentId, MediaSegmentStatus.LoadingViaHttp);
+                overallSegmentsMap.set(segmentId, BKResourceStatus.LoadingViaHttp);
             }
         }));
 
@@ -236,7 +237,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         this.emit("bytes-uploaded", bytes);
     }
 
-    private onPeerConnect = (peer: MediaPeer) => {
+    private onPeerConnect = (peer: Peer) => {
         const connectedPeer = this.peers.get(peer.id);
 
         if (connectedPeer) {
@@ -263,7 +264,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         this.emit("peer-connected", {id: peer.id, remoteAddress: peer.remoteAddress});
     }
 
-    private onPeerClose = (peer: MediaPeer) => {
+    private onPeerClose = (peer: Peer) => {
         if (this.peers.get(peer.id) != peer) {
             // Try to delete the peer candidate
 
@@ -299,7 +300,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         this.emit("peer-data-updated");
     }
 
-    private onSegmentRequest = (peer: MediaPeer, segmentId: string) => {
+    private onSegmentRequest = (peer: Peer, segmentId: string) => {
         const segment = this.cachedSegments.get(segmentId);
         if (segment) {
             peer.sendSegmentData(segmentId, segment.data!);
@@ -308,7 +309,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    private onSegmentLoaded = (peer: MediaPeer, segmentId: string, data: ArrayBuffer) => {
+    private onSegmentLoaded = (peer: Peer, segmentId: string, data: ArrayBuffer) => {
         const peerSegmentRequest = this.peerSegmentRequests.get(segmentId);
         if (peerSegmentRequest) {
             this.peerSegmentRequests.delete(segmentId);
@@ -316,12 +317,12 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    private onSegmentAbsent = (peer: MediaPeer, segmentId: string) => {
+    private onSegmentAbsent = (peer: Peer, segmentId: string) => {
         this.peerSegmentRequests.delete(segmentId);
         this.emit("peer-data-updated");
     }
 
-    private onSegmentError = (peer: MediaPeer, segmentId: string, description: string) => {
+    private onSegmentError = (peer: Peer, segmentId: string, description: string) => {
         const peerSegmentRequest = this.peerSegmentRequests.get(segmentId);
         if (peerSegmentRequest) {
             this.peerSegmentRequests.delete(segmentId);
@@ -329,7 +330,7 @@ export class MediaDownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    private onSegmentTimeout = (peer: MediaPeer, segmentId: string) => {
+    private onSegmentTimeout = (peer: Peer, segmentId: string) => {
         const peerSegmentRequest = this.peerSegmentRequests.get(segmentId);
         if (peerSegmentRequest) {
             this.peerSegmentRequests.delete(segmentId);

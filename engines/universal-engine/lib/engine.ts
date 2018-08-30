@@ -1,28 +1,37 @@
 import { EventEmitter } from "eventemitter3";
-import { IMediaDownloader, MediaAccessProxy, Events, OptMediaProxyAccessSettings } from "../../../core/lib";
+
+import {
+    BK_IProxy,
+    BKAccessProxy,
+    Events,
+    BKOptAccessProxySettings,
+    BKResource,
+    BKAccessProxySettings
+} from "../../../core/lib";
+
 import { HlsAccessProxy } from "./hls-access-proxy";
 
 import * as Debug from "debug";
+import { P2PDownloaderQueue } from "./p2p-downloader-queue";
 
-const debug = Debug("p2pml:virtual:engine");
+const debug = Debug("p2pml:universal:engine");
 
 export class Engine extends EventEmitter {
 
     public static isSupported(): boolean {
-        return MediaAccessProxy.isSupported();
+        return BKAccessProxy.isSupported();
     }
 
-    private downloader: IMediaDownloader;
+    private downloader: BK_IProxy;
     private sourceUrl: string | null = null;
-
     private hlsProxy: HlsAccessProxy;
 
-    public constructor(settings: OptMediaProxyAccessSettings) {
+    public constructor(settings: BKOptAccessProxySettings) {
         super();
 
-        debug("created virtual engine", settings);
+        debug("created universal adaptive media p2p engine", settings);
 
-        this.downloader = new MediaAccessProxy(settings);
+        this.downloader = new P2PDownloaderQueue(new BKAccessProxy(settings));
         this.hlsProxy = new HlsAccessProxy(this.downloader);
 
         // forward all events
@@ -42,7 +51,6 @@ export class Engine extends EventEmitter {
         }
 
         this.sourceUrl = url;
-
         this.hlsProxy.setSource(url);
     }
 }
