@@ -36,9 +36,7 @@
     "url": "https://github.com/Novage/p2p-media-loader.git"
   },
   "dependencies": {
-    "@hola.org/jwplayer-hlsjs": "^0.0.79",
     "bittorrent-tracker": "^9.6.0",
-    "crypto-browserify": "^3.11.1",
     "debug": "^3.1.0",
     "es6-set": "^0.1.5",
     "eventemitter3": "^3.1.0",
