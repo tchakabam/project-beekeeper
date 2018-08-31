@@ -3,6 +3,7 @@ import * as Debug from "debug";
 import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from "../../../ext-mod/emliri-es-libs/rialto/lib/resource-request";
 import { XHRState, XHRData, XHR } from "../../../ext-mod/emliri-es-libs/rialto/lib/xhr";
 import { BKResource, BK_IProxy, Events } from "../../../core/lib";
+import { getPerfNow } from "../../../core/lib/perf-now";
 
 const debug = Debug("p2pml:universal:resource-request");
 
@@ -21,7 +22,7 @@ export class P2PMediaDownloaderRequest implements IResourceRequest {
     secondsUntilDone: number = NaN;
     secondsUntilHeaders: number = NaN;
 
-    private segment: BKResource;
+    private _resource: BKResource;
 
     private _resourceRequestCallback: ResourceRequestCallback;
     private _wasSuccessful: boolean = false;
@@ -41,17 +42,17 @@ export class P2PMediaDownloaderRequest implements IResourceRequest {
 
         debug(`creating new p2p resource: ${url} with swarm-ID "${swarmId}"`);
 
-        const segment: BKResource = this.segment = new BKResource(
+        const res: BKResource = this._resource = new BKResource(
             url,
             this.options.byteRange
         );
 
-        segment.swarmId = this.swarmId;
+        res.swarmId = this.swarmId;
 
-        this.downloader.enqueue(segment);
+        this.downloader.enqueue(res);
 
         this._resourceRequestCallback = this.options.requestCallback;
-        this._requestCreated = Date.now();
+        this._requestCreated = getPerfNow();
     }
 
     abort() {
@@ -69,8 +70,8 @@ export class P2PMediaDownloaderRequest implements IResourceRequest {
         }
     }
 
-    private onSegmentLoaded(segment: BKResource) {
-        if (segment.id !== this.segment.id) {
+    private onSegmentLoaded(res: BKResource) {
+        if (res.id !== this._resource.id) {
             return;
         }
 
@@ -86,17 +87,17 @@ export class P2PMediaDownloaderRequest implements IResourceRequest {
         this.secondsUntilDone = Date.now() - this._requestCreated;
         this.secondsUntilLoading = this.secondsUntilDone;
 
-        this.loadedBytes = segment.data.byteLength;
-        this.totalBytes = segment.data.byteLength;
-        this.responseData = segment.data;
+        this.loadedBytes = res.data.byteLength;
+        this.totalBytes = res.data.byteLength;
+        this.responseData = res.data;
 
-        debug(`segment loaded: ${this.url}`, segment);
+        debug(`segment loaded: ${this.url}`, res);
 
         this._invokeRequestCallback();
     }
 
     private onSegmentError(segment: BKResource, err: Error) {
-        if (segment.id !== this.segment.id) {
+        if (segment.id !== this._resource.id) {
             return;
         }
 
@@ -108,7 +109,7 @@ export class P2PMediaDownloaderRequest implements IResourceRequest {
     }
 
     private onSegmentAbort(segment: BKResource) {
-        if (segment.id !== this.segment.id) {
+        if (segment.id !== this._resource.id) {
             return;
         }
 
