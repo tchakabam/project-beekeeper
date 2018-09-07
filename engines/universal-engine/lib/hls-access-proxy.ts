@@ -40,6 +40,12 @@ export class HlsAccessProxy {
         this._processM3u8File(url);
     }
 
+    public setFetchTarget(time: number) {
+        if (this.mediaStreamConsumer) {
+            this.mediaStreamConsumer.updateFetchTarget(time);
+        }
+    }
+
     public getSwarmIdForVariantPlaylist(manifestUrl: string): string {
         if (this._swarmIdCache[manifestUrl]) {
             debug(`swarm-ID cache hit: ${this._swarmIdCache[manifestUrl]}`);
@@ -95,7 +101,7 @@ export class HlsAccessProxy {
             this.mediaStreamConsumer = consumer;
 
             consumer.maxConcurrentFetchInit = Infinity;
-            consumer.updateFetchTarget(5);
+            //consumer.updateFetchTarget(5);
         })
     }
 

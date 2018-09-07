@@ -12,6 +12,7 @@ import {
 import { HlsAccessProxy } from "./hls-access-proxy";
 
 import * as Debug from "debug";
+import { VirtualPlayhead } from "./virtual-playhead";
 
 const debug = Debug("bk:engine:universal:engine");
 
@@ -24,6 +25,8 @@ export class Engine extends EventEmitter {
     private downloader: BK_IProxy;
     private sourceUrl: string | null = null;
     private hlsProxy: HlsAccessProxy;
+
+    private playhead: VirtualPlayhead;
 
     public constructor(settings: BKOptAccessProxySettings) {
         super();
@@ -38,6 +41,17 @@ export class Engine extends EventEmitter {
         Object.keys(Events)
             .map(eventKey => Events[eventKey as any])
             .forEach(event => this.downloader.on(event, (...args: any[]) => this.emit(event, ...args)));
+
+
+        const playhead: VirtualPlayhead = new VirtualPlayhead(() => {
+            console.log('media-engine virtual clock time:', playhead.getCurrentTime())
+
+            this.hlsProxy.setFetchTarget(playhead.getCurrentTime());
+        });
+
+        this.playhead = playhead;
+
+        playhead.play();
     }
 
     public destroy() {
