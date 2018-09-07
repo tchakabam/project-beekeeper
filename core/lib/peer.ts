@@ -23,7 +23,7 @@ import { IPeerTransport, PeerCommandType, PeerTransportCommand, decodeMediaPeerT
 
 import { BKResourceMap, BKResourceStatus, BKResourceMapData } from "./bk-resource";
 
-class DownloadingSegment {
+class PeerDataTransmission {
     public bytesDownloaded = 0;
     public chunks: ArrayBuffer[] = [];
 
@@ -42,10 +42,11 @@ export class Peer extends StringlyTypedEventEmitter<
     public id: string;
     public remoteAddress: string = "";
 
+    private debug = Debug("bk:core:peer");
+
     private downloadingSegmentId: string | null = null;
-    private downloadingSegment: DownloadingSegment | null = null;
+    private downloadingSegment: PeerDataTransmission | null = null;
     private segmentsMap: BKResourceMap = BKResourceMap.create();
-    private debug = Debug("p2pml:media-peer");
     private timer: number | null = null;
     private isSafari11_0: boolean = false;
 
@@ -68,13 +69,13 @@ export class Peer extends StringlyTypedEventEmitter<
     }
 
     private onPeerConnect(): void {
-        this.debug("peer connect", this.id, this);
+        this.debug(`remote peer (id='${this.id}') connection open`);
         this.remoteAddress = this.peer.remoteAddress;
         this.emit("connect", this);
     }
 
     private onPeerClose(): void {
-        this.debug("peer close", this.id, this);
+        this.debug(`remote peer (id='${this.id}') connection closed`);
         this.terminateSegmentRequest();
         this.emit("close", this);
     }
@@ -82,7 +83,7 @@ export class Peer extends StringlyTypedEventEmitter<
     private handleSegmentChunk(data: ArrayBuffer): void {
         if (!this.downloadingSegment) {
             // The segment was not requested or canceled
-            this.debug("peer segment not requested", this.id, this);
+            this.debug(`received data from remote peer (id='${this.id}') for non-requested or canceled segment :(`);
             return;
         }
 
@@ -100,11 +101,14 @@ export class Peer extends StringlyTypedEventEmitter<
                 offset += chunk.byteLength;
             }
 
-            this.debug("peer segment download done", this.id, segmentId, this);
+            this.debug("peer resource transfer done", this.id, segmentId, this);
             this.terminateSegmentRequest();
             this.emit("segment-loaded", this, segmentId, segmentData.buffer);
         } else if (this.downloadingSegment.bytesDownloaded > this.downloadingSegment.size) {
-            this.debug("peer segment download bytes mismatch", this.id, segmentId, this);
+            this.debug(`remote peer (id='${this.id}'): transferred resource bytes mismatch!!!`, segmentId);
+
+            console.error("There was a fatal peer transaction error :(");
+
             this.terminateSegmentRequest();
             this.emit("segment-error", this, segmentId, "Too many bytes received for segment");
         }
@@ -128,7 +132,7 @@ export class Peer extends StringlyTypedEventEmitter<
 
         this.debug("peer receive command", this.id, command, this);
 
-        switch (command.command) {
+        switch (command.type) {
             case PeerCommandType.SegmentsMap:
                 if (!command.segments) {
                     throw new Error("No `segments` found in data");
@@ -146,7 +150,7 @@ export class Peer extends StringlyTypedEventEmitter<
                     if (!command.segment_size) {
                         throw new Error("No `segment_size` found in data");
                     }
-                    this.downloadingSegment = new DownloadingSegment(command.segment_id, command.segment_size);
+                    this.downloadingSegment = new PeerDataTransmission(command.segment_id, command.segment_size);
                     this.cancelResponseTimeoutTimer();
                 }
                 break;
@@ -169,12 +173,12 @@ export class Peer extends StringlyTypedEventEmitter<
     }
 
     private sendCommand(command: PeerTransportCommand): void {
-        this.debug("peer send command", this.id, command, this);
+        this.debug(`sending command "${command.type}" to remote peer (id='${this.id}') `);
         this.peer.write(JSON.stringify(command));
     }
 
     public destroy(): void {
-        this.debug("peer destroy", this.id, this);
+        this.debug(`destroying local handle for remote peer (id='${this.id}') -> goodbye mate :)`);
         this.terminateSegmentRequest();
         this.peer.destroy();
     }
@@ -188,14 +192,14 @@ export class Peer extends StringlyTypedEventEmitter<
     }
 
     public sendSegmentsMap(segments: BKResourceMapData): void {
-        this.sendCommand({"command": PeerCommandType.SegmentsMap, "segments": segments});
+        this.sendCommand({"type": PeerCommandType.SegmentsMap, "segments": segments});
     }
 
     public sendSegmentData(segmentId: string, data: ArrayBuffer): void {
         this.sendCommand({
-            "command": PeerCommandType.SegmentData,
-            "segment_id": segmentId,
-            "segment_size": data.byteLength
+            type: PeerCommandType.SegmentData,
+            segment_id: segmentId,
+            segment_size: data.byteLength
         });
 
         let bytesLeft = data.byteLength;
@@ -214,7 +218,7 @@ export class Peer extends StringlyTypedEventEmitter<
     }
 
     public sendSegmentAbsent(segmentId: string): void {
-        this.sendCommand({"command": PeerCommandType.SegmentAbsent, "segment_id": segmentId});
+        this.sendCommand({type: PeerCommandType.SegmentAbsent, segment_id: segmentId});
     }
 
     public requestSegment(segmentId: string): void {
@@ -222,7 +226,7 @@ export class Peer extends StringlyTypedEventEmitter<
             throw new Error("A segment is already downloading: " + this.downloadingSegmentId);
         }
 
-        this.sendCommand({"command": PeerCommandType.SegmentRequest, "segment_id": segmentId});
+        this.sendCommand({type: PeerCommandType.SegmentRequest, segment_id: segmentId});
         this.downloadingSegmentId = segmentId;
         this.runResponseTimeoutTimer();
     }
@@ -231,7 +235,7 @@ export class Peer extends StringlyTypedEventEmitter<
         if (this.downloadingSegmentId) {
             const segmentId = this.downloadingSegmentId;
             this.terminateSegmentRequest();
-            this.sendCommand({"command": PeerCommandType.CancelSegmentRequest, "segment_id": segmentId});
+            this.sendCommand({type: PeerCommandType.CancelSegmentRequest, segment_id: segmentId});
         }
     }
 

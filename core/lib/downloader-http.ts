@@ -22,7 +22,7 @@ import { BKResource } from "./bk-resource";
 import {Queue} from "../../ext-mod/emliri-es-libs/rialto/lib/queue";
 import {Resource, ResourceEvents} from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
 
-const debug = Debug("p2pml:downloader-http");
+const debug = Debug("bk:core:downloader-http");
 
 export class DownloaderHttp
     extends StringlyTypedEventEmitter<"segment-loaded" | "segment-error" | "bytes-downloaded"> {

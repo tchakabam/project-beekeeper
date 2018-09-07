@@ -5,9 +5,9 @@ import { XHRState, XHRData, XHR } from "../../../ext-mod/emliri-es-libs/rialto/l
 import { BKResource, BK_IProxy, Events } from "../../../core/lib";
 import { getPerfNow } from "../../../core/lib/perf-now";
 
-const debug = Debug("p2pml:universal:resource-request");
+const debug = Debug("bk:engine:universal:resource-request");
 
-export class P2PMediaDownloaderRequest implements IResourceRequest {
+export class P2PResourceRequest implements IResourceRequest {
 
     xhrState: XHRState = XHRState.UNSENT;
     responseData: XHRData = null;

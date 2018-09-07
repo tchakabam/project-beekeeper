@@ -10,13 +10,13 @@ import { AdaptiveMediaStreamConsumer } from "../../../ext-mod/emliri-es-libs/ria
 import { AdaptiveMedia, AdaptiveMediaPeriod } from "../../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media";
 import { MediaSegment } from "../../../ext-mod/emliri-es-libs/rialto";
 
-import { P2PMediaDownloaderRequest } from "./p2p-resource-request";
+import { P2PResourceRequest } from "./p2p-resource-request";
 
 const SWARM_URN_PREFIX = "urn:livepeer:beekeeper:bittorrent:swarm-id";
 
 const SCHEDULER_FRAMERATE: number = 1;
 
-const debug = Debug("p2pml:universal:hls-access-proxy");
+const debug = Debug("bk:engine:universal:hls-access-proxy");
 
 export class HlsAccessProxy {
 
@@ -59,7 +59,7 @@ export class HlsAccessProxy {
     }
 
     private _createResourceRequest(swarmId: string, url: string, requestOpts: ResourceRequestOptions): IResourceRequest {
-        return new P2PMediaDownloaderRequest(this.downloader, swarmId, url, requestOpts);
+        return new P2PResourceRequest(this.downloader, swarmId, url, requestOpts);
     }
 
     private _processM3u8File(url: string) {

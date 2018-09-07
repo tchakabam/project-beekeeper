@@ -19,7 +19,7 @@ import * as Debug from "debug";
 import {EventEmitter} from "eventemitter3"
 import {DownloaderHttp} from "./downloader-http";
 import {DownloaderP2p} from "./downloader-p2p";
-import {SpeedApproximator} from "./speed-approximator";
+import {BandwidthEstimator} from "./bandwidth-estimator";
 import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from "./peer-transport";
 
 import { BKResource, BKResourceMapData, BKResourceStatus } from "./bk-resource";
@@ -166,13 +166,13 @@ export interface BK_IProxy {
 
 export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
-    private readonly debug = Debug("p2pml:access-proxy");
+    private readonly debug = Debug("bk:core:access-proxy");
 
     private readonly _httpDownloader: DownloaderHttp;
     private readonly _p2pDownloader: DownloaderP2p;
     private readonly _storedSegments: Map<string, BKResource> = new Map();
 
-    private readonly speedApproximator = new SpeedApproximator();
+    private readonly bandwidthEstimator = new BandwidthEstimator();
     private readonly settings: BKAccessProxySettings;
 
     public static isSupported(): boolean {
@@ -241,12 +241,12 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     // Event handlers
 
     private onChunkBytesDownloaded = (method: "http" | "p2p", bytes: number) => {
-        this.speedApproximator.addBytes(bytes, getPerfNow());
+        this.bandwidthEstimator.addBytes(bytes, getPerfNow());
         this.emit(BKAccessProxyEvents.ChunkBytesDownloaded, method, bytes);
     }
 
     private onChunkBytesUploaded = (method: "p2p", bytes: number) => {
-        this.speedApproximator.addBytes(bytes, getPerfNow());
+        this.bandwidthEstimator.addBytes(bytes, getPerfNow());
         this.emit(BKAccessProxyEvents.ChunkBytesUploaded, method, bytes);
     }
 

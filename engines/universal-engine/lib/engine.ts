@@ -13,7 +13,7 @@ import { HlsAccessProxy } from "./hls-access-proxy";
 
 import * as Debug from "debug";
 
-const debug = Debug("p2pml:universal:engine");
+const debug = Debug("bk:engine:universal:engine");
 
 export class Engine extends EventEmitter {
 
@@ -34,7 +34,7 @@ export class Engine extends EventEmitter {
         this.hlsProxy = new HlsAccessProxy(this.downloader);
 
         // forward all events
-        // to Utils
+        // TODO: -> to Utils
         Object.keys(Events)
             .map(eventKey => Events[eventKey as any])
             .forEach(event => this.downloader.on(event, (...args: any[]) => this.emit(event, ...args)));
@@ -53,6 +53,7 @@ export class Engine extends EventEmitter {
 
         debug("set source", url)
 
+        // FIXME: this is a hack, should only be used if running directly on a media-variant playlist (not master)
         this.downloader.setSwarmId(this.hlsProxy.getSwarmIdForVariantPlaylist(url));
     }
 

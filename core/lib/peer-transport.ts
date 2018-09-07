@@ -3,7 +3,7 @@ import { StringlyTypedEventEmitter } from "./stringly-typed-event-emitter";
 import * as Debug from "debug";
 import { BKResourceMapData } from "./bk-resource";
 
-const debug = Debug("p2pml:media-peer-transport");
+const debug = Debug("bk:core:peer-transport");
 
 export enum PeerCommandType {
     SegmentData = "segment_data",
@@ -14,7 +14,7 @@ export enum PeerCommandType {
 }
 
 export type PeerTransportCommand = {
-    command: PeerCommandType
+    type: PeerCommandType
     segment_id?: string
     segment_size?: number
     segments?: BKResourceMapData
@@ -71,9 +71,9 @@ export class DefaultPeerTransportFilter
 
     write(buffer: string | Buffer): void {
         if (typeof buffer === "string") {
-            debug(`write call to peer ${this.id} with string: ${buffer}`);
+            debug(`writing data to remote peer (id='${this.id}') with string: ${buffer}`);
         } else {
-            debug(`write call peer ${this.id} with Buffer object, byte-length is ${buffer.byteLength}`)
+            debug(`writing data to remote peer (id='${this.id}') with Buffer object, byte-length is ${buffer.byteLength}`)
         }
         this._transport.write(buffer);
     }

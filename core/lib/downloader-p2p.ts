@@ -16,6 +16,8 @@
 
 /// <reference path="../../decl/bittorrent.d.ts" />
 
+const uuidv4 = require('uuid/v4');
+
 import * as Debug from "debug";
 
 import {Client} from "bittorrent-tracker";
@@ -31,7 +33,7 @@ const PEER_PROTOCOL_VERSION = 1;
 class PeerResourceRequest {
     constructor(
         readonly peerId: string,
-        readonly segment: BKResource
+        readonly resource: BKResource
     ) {}
 }
 
@@ -51,10 +53,10 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
     private trackerClient: ITrackerClient | null = null;
     private peers: Map<string, Peer> = new Map();
     private peerCandidates: Map<string, Peer[]> = new Map();
-    private peerSegmentRequests: Map<string, PeerResourceRequest> = new Map();
+    private peerResourceRequests: Map<string, PeerResourceRequest> = new Map();
     private swarmId: string | null = null;
     private peerId: string;
-    private debug = Debug("p2pml:downloader-p2p");
+    private debug = Debug("bk:core:downloader-p2p");
 
     public constructor(
             readonly cachedSegments: Map<string, BKResource>,
@@ -68,7 +70,12 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
             }) {
         super();
 
-        this.peerId = createHash("sha1").update((Date.now() + Math.random()).toFixed(12)).digest("hex");
+
+        //const peerIdSource = (Date.now() + Math.random()).toFixed(12);
+        // FIXED: using a real UUID is better at scale :)
+        const peerIdSource = uuidv4(); // see https://www.npmjs.com/package/uuid
+
+        this.peerId = createHash("sha1").update(peerIdSource).digest("hex");
 
         this.debug("peer ID", this.peerId);
     }
@@ -82,6 +89,8 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
 
         this.swarmId = swarmId;
         this.debug("swarm ID", this.swarmId);
+
+        // Q: check what this hash is really about
         this.createClient(createHash("sha1").update(PEER_PROTOCOL_VERSION + this.swarmId).digest("hex"));
     }
 
@@ -156,7 +165,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
             if ((peer.getDownloadingSegmentId() == null) &&
                     (peer.getSegmentsMap().get(segment.id) === BKResourceStatus.Loaded)) {
                 peer.requestSegment(segment.id);
-                this.peerSegmentRequests.set(segment.id, new PeerResourceRequest(peer.id, segment));
+                this.peerResourceRequests.set(segment.id, new PeerResourceRequest(peer.id, segment));
                 return true;
             }
         }
@@ -165,22 +174,22 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
     }
 
     public abort(segment: BKResource): void {
-        const peerSegmentRequest = this.peerSegmentRequests.get(segment.id);
+        const peerSegmentRequest = this.peerResourceRequests.get(segment.id);
         if (peerSegmentRequest) {
             const peer = this.peers.get(peerSegmentRequest.peerId);
             if (peer) {
                 peer.cancelSegmentRequest();
             }
-            this.peerSegmentRequests.delete(segment.id);
+            this.peerResourceRequests.delete(segment.id);
         }
     }
 
     public isDownloading(segment: BKResource): boolean {
-        return this.peerSegmentRequests.has(segment.id);
+        return this.peerResourceRequests.has(segment.id);
     }
 
     public getActiveDownloadsCount(): number {
-        return this.peerSegmentRequests.size;
+        return this.peerResourceRequests.size;
     }
 
     public destroy(): void {
@@ -195,7 +204,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         this.peers.forEach((peer) => peer.destroy());
         this.peers.clear();
 
-        this.peerSegmentRequests.clear();
+        this.peerResourceRequests.clear();
 
         this.peerCandidates.forEach((peerCandidateById) => {
             for (const peerCandidate of peerCandidateById) {
@@ -288,9 +297,9 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
             return;
         }
 
-        this.peerSegmentRequests.forEach((value, key) => {
+        this.peerResourceRequests.forEach((value, key) => {
             if (value.peerId == peer.id) {
-                this.peerSegmentRequests.delete(key);
+                this.peerResourceRequests.delete(key);
             }
         });
 
@@ -313,32 +322,35 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
     }
 
     private onSegmentLoaded = (peer: Peer, segmentId: string, data: ArrayBuffer) => {
-        const peerSegmentRequest = this.peerSegmentRequests.get(segmentId);
-        if (peerSegmentRequest) {
-            this.peerSegmentRequests.delete(segmentId);
-            this.emit("segment-loaded", peerSegmentRequest.segment, data);
+        const peerResourceRequest = this.peerResourceRequests.get(segmentId);
+        if (peerResourceRequest) {
+            this.peerResourceRequests.delete(segmentId);
+
+            peerResourceRequest.resource.setBuffer(data);
+
+            this.emit("segment-loaded", peerResourceRequest.resource, data);
         }
     }
 
     private onSegmentAbsent = (peer: Peer, segmentId: string) => {
-        this.peerSegmentRequests.delete(segmentId);
+        this.peerResourceRequests.delete(segmentId);
         this.emit("peer-data-updated");
     }
 
     private onSegmentError = (peer: Peer, segmentId: string, description: string) => {
-        const peerSegmentRequest = this.peerSegmentRequests.get(segmentId);
-        if (peerSegmentRequest) {
-            this.peerSegmentRequests.delete(segmentId);
-            this.emit("segment-error", peerSegmentRequest.segment, description);
+        const peerResourceRequest = this.peerResourceRequests.get(segmentId);
+        if (peerResourceRequest) {
+            this.peerResourceRequests.delete(segmentId);
+            this.emit("segment-error", peerResourceRequest.resource, description);
         }
     }
 
     private onSegmentTimeout = (peer: Peer, segmentId: string) => {
-        const peerSegmentRequest = this.peerSegmentRequests.get(segmentId);
-        if (peerSegmentRequest) {
-            this.peerSegmentRequests.delete(segmentId);
+        const peerResourceRequest = this.peerResourceRequests.get(segmentId);
+        if (peerResourceRequest) {
+            this.peerResourceRequests.delete(segmentId);
             peer.destroy();
-            if (this.peers.delete(peerSegmentRequest.peerId)) {
+            if (this.peers.delete(peerResourceRequest.peerId)) {
                 this.emit("peer-data-updated");
             }
         }
