@@ -54,7 +54,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
     private peerSegmentRequests: Map<string, PeerResourceRequest> = new Map();
     private swarmId: string | null = null;
     private peerId: string;
-    private debug = Debug("p2pml:media-downloader-p2p");
+    private debug = Debug("p2pml:downloader-p2p");
 
     public constructor(
             readonly cachedSegments: Map<string, BKResource>,
@@ -132,8 +132,8 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         peer.on("segment-absent", this.onSegmentAbsent);
         peer.on("segment-error", this.onSegmentError);
         peer.on("segment-timeout", this.onSegmentTimeout);
-        peer.on("bytes-downloaded", this.onPieceBytesDownloaded);
-        peer.on("bytes-uploaded", this.onPieceBytesUploaded);
+        peer.on("bytes-downloaded", this.onChunkBytesDownloaded);
+        peer.on("bytes-uploaded", this.onChunkBytesUploaded);
 
         let peerCandidatesById = this.peerCandidates.get(peer.id);
 
@@ -232,11 +232,11 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         return overallSegmentsMap;
     }
 
-    private onPieceBytesDownloaded = (bytes: number) => {
+    private onChunkBytesDownloaded = (bytes: number) => {
         this.emit("bytes-downloaded", bytes);
     }
 
-    private onPieceBytesUploaded = (bytes: number) => {
+    private onChunkBytesUploaded = (bytes: number) => {
         this.emit("bytes-uploaded", bytes);
     }
 

@@ -144,16 +144,16 @@ export enum BKAccessProxyEvents {
     PeerClose = "peer_close",
 
     /**
-     * Emitted when a segment piece has been downloaded.
+     * Emitted when a segment chunk has been downloaded.
      * Args: method (can be "http" or "p2p" only), bytes
      */
-    PieceBytesDownloaded = "piece_bytes_downloaded",
+    ChunkBytesDownloaded = "chunk_bytes_downloaded",
 
     /**
-     * Emitted when a segment piece has been uploaded.
+     * Emitted when a segment chunk has been uploaded.
      * Args: method (can be "p2p" only), bytes
      */
-    PieceBytesUploaded = "piece_bytes_uploaded"
+    ChunkBytesUploaded = "chunk_bytes_uploaded"
 }
 
 export interface BK_IProxy {
@@ -189,14 +189,14 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this._httpDownloader = new DownloaderHttp();
         this._httpDownloader.on("segment-loaded", this.onSegmentLoaded);
         this._httpDownloader.on("segment-error", this.onSegmentError);
-        this._httpDownloader.on("bytes-downloaded", (bytes: number) => this.onPieceBytesDownloaded("http", bytes));
+        this._httpDownloader.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("http", bytes));
 
         this._p2pDownloader = new DownloaderP2p(this._storedSegments, this.settings);
         this._p2pDownloader.on("segment-loaded", this.onSegmentLoaded);
         this._p2pDownloader.on("segment-error", this.onSegmentError);
 
-        this._p2pDownloader.on("bytes-downloaded", (bytes: number) => this.onPieceBytesDownloaded("p2p", bytes));
-        this._p2pDownloader.on("bytes-uploaded", (bytes: number) => this.onPieceBytesUploaded("p2p", bytes));
+        this._p2pDownloader.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("p2p", bytes));
+        this._p2pDownloader.on("bytes-uploaded", (bytes: number) => this.onChunkBytesUploaded("p2p", bytes));
 
         this._p2pDownloader.on("peer-connected", this.onPeerConnect);
         this._p2pDownloader.on("peer-closed", this.onPeerClose);
@@ -240,14 +240,14 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
     // Event handlers
 
-    private onPieceBytesDownloaded = (method: "http" | "p2p", bytes: number) => {
+    private onChunkBytesDownloaded = (method: "http" | "p2p", bytes: number) => {
         this.speedApproximator.addBytes(bytes, getPerfNow());
-        this.emit(BKAccessProxyEvents.PieceBytesDownloaded, method, bytes);
+        this.emit(BKAccessProxyEvents.ChunkBytesDownloaded, method, bytes);
     }
 
-    private onPieceBytesUploaded = (method: "p2p", bytes: number) => {
+    private onChunkBytesUploaded = (method: "p2p", bytes: number) => {
         this.speedApproximator.addBytes(bytes, getPerfNow());
-        this.emit(BKAccessProxyEvents.PieceBytesUploaded, method, bytes);
+        this.emit(BKAccessProxyEvents.ChunkBytesUploaded, method, bytes);
     }
 
     private onSegmentLoaded = (segment: BKResource, data: ArrayBuffer) => {

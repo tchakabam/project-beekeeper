@@ -25,7 +25,8 @@ import { BKResourceMap, BKResourceStatus, BKResourceMapData } from "./bk-resourc
 
 class DownloadingSegment {
     public bytesDownloaded = 0;
-    public pieces: ArrayBuffer[] = [];
+    public chunks: ArrayBuffer[] = [];
+
     constructor(readonly id: string, readonly size: number) {}
 }
 
@@ -78,7 +79,7 @@ export class Peer extends StringlyTypedEventEmitter<
         this.emit("close", this);
     }
 
-    private receiveSegmentPiece(data: ArrayBuffer): void {
+    private handleSegmentChunk(data: ArrayBuffer): void {
         if (!this.downloadingSegment) {
             // The segment was not requested or canceled
             this.debug("peer segment not requested", this.id, this);
@@ -86,7 +87,7 @@ export class Peer extends StringlyTypedEventEmitter<
         }
 
         this.downloadingSegment.bytesDownloaded += data.byteLength;
-        this.downloadingSegment.pieces.push(data);
+        this.downloadingSegment.chunks.push(data);
         this.emit("bytes-downloaded", data.byteLength);
 
         const segmentId = this.downloadingSegment.id;
@@ -94,9 +95,9 @@ export class Peer extends StringlyTypedEventEmitter<
         if (this.downloadingSegment.bytesDownloaded == this.downloadingSegment.size) {
             const segmentData = new Uint8Array(this.downloadingSegment.size);
             let offset = 0;
-            for (const piece of this.downloadingSegment.pieces) {
-                segmentData.set(new Uint8Array(piece), offset);
-                offset += piece.byteLength;
+            for (const chunk of this.downloadingSegment.chunks) {
+                segmentData.set(new Uint8Array(chunk), offset);
+                offset += chunk.byteLength;
             }
 
             this.debug("peer segment download done", this.id, segmentId, this);
@@ -112,7 +113,7 @@ export class Peer extends StringlyTypedEventEmitter<
     private onPeerData(data: ArrayBuffer): void {
         const command = decodeMediaPeerTransportCommand(data);
         if (!command) {
-            this.receiveSegmentPiece(data);
+            this.handleSegmentChunk(data);
             return;
         }
 
