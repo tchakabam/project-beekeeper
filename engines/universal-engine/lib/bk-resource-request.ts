@@ -7,7 +7,7 @@ import { getPerfNow } from "../../../core/lib/perf-now";
 
 const debug = Debug("bk:engine:universal:resource-request");
 
-export class P2PResourceRequest implements IResourceRequest {
+export class BKResourceRequest implements IResourceRequest {
 
     xhrState: XHRState = XHRState.UNSENT;
     responseData: XHRData = null;
@@ -61,6 +61,10 @@ export class P2PResourceRequest implements IResourceRequest {
 
     wasSuccessful(): boolean  {
         return this._wasSuccessful;
+    }
+
+    getResource(): BKResource {
+        return this._resource;
     }
 
     private _invokeRequestCallback() {

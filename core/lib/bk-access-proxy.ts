@@ -113,6 +113,13 @@ export const defaultSettings: BKAccessProxySettings = {
 };
 
 export enum BKAccessProxyEvents {
+
+    ResourceRequested = "resource:requested",
+
+    ResourceEnqueuedHttp = "resource:enqueued:http",
+
+    ResourceEnqueuedP2p = "resource:enqueued:p2p",
+
     /**
      * Emitted when segment has been downloaded.
      * Args: segment
@@ -206,14 +213,18 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     public enqueue(resource: BKResource): void {
         this.debug("enqueueing:", resource);
 
+        this.emit(BKAccessProxyEvents.ResourceRequested, resource);
+
         // update Swarm ID
         this._p2pDownloader.setSwarmId(resource.swarmId);
 
         if (this._p2pDownloader.enqueue(resource)) {
-            this.debug("enqueud to p2p downloader")
+            this.debug("enqueued to p2p downloader")
+            this.emit(BKAccessProxyEvents.ResourceEnqueuedP2p, resource);
         } else {
             this.debug("falling back to http downloader")
             this._httpDownloader.enqueue(resource);
+            this.emit(BKAccessProxyEvents.ResourceEnqueuedHttp, resource);
         }
     }
 

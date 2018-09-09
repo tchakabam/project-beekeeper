@@ -81,6 +81,9 @@ export class Peer extends StringlyTypedEventEmitter<
     }
 
     private handleSegmentChunk(data: ArrayBuffer): void {
+
+        this.debug(`received resource data from remote peer (id='${this.id}')`);
+
         if (!this.downloadingSegment) {
             // The segment was not requested or canceled
             this.debug(`received data from remote peer (id='${this.id}') for non-requested or canceled segment :(`);
