@@ -33,6 +33,6 @@ function makeConfig({libName, entry, mode}) {
 };
 
 module.exports = [
-    makeConfig({libName: 'P2pMediaLoaderCore', entry: './core/lib/index', mode: 'development'}),
-    makeConfig({libName: 'P2pMediaLoaderUniversalEngine', entry: './engines/universal-engine/lib/index', mode: 'development'}),
+    makeConfig({libName: 'BeekeeprCore', entry: './core/lib/index', mode: 'development'}),
+    makeConfig({libName: 'BeekeeprUniversalEngine', entry: './engines/universal-engine/lib/index', mode: 'development'}),
 ];

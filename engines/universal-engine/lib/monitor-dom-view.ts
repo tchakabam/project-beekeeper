@@ -35,9 +35,11 @@ class ResourceTransferView {
     }
 
     getHTML(): string {
-        return `<span>URL: ${this._resource.getUrl()}</span>
+        return `<span><label>URL:</label> ${this._resource.getUrl()}</span><br>
             | <span>${ this._isP2p ? "P2P" : "HTTP" }</span>
-            | <span>Transferred bytes: ${this._resource.requestedBytesLoaded} / ${this._resource.requestedBytesTotal}</span>`;
+            | <span><label>Transferred (bytes):</label> ${this._resource.requestedBytesLoaded} / ${this._resource.requestedBytesTotal}</span>
+            | <span><label>Bitrate (kbits/sec): </label> ${((8 * this._resource.requestedBytesLoaded / this._resource.fetchLatency) / 1000).toFixed(1)}</span>
+            `;
     }
 
     private _onFetchProgress() {
@@ -99,16 +101,16 @@ export class MonitorDomView {
 
         console.log('view update')
 
-        this._domRootEl.innerHTML = '';
-
+        // use JSX ?
         let html = '<div>';
-
         this._resourceRequests.forEach((resourceTransfer: ResourceTransferView) => {
-            html += `<div>Resource download - ${resourceTransfer.getHTML()}</div>`
+            html += `<div class="resource-dl"><i>Resource download stats</i><p>${resourceTransfer.getHTML()}</p></div>`
+            html += `<hr />`
         });
-
         html += '</div>';
 
+
+        this._domRootEl.innerHTML = '';
         this._domRootEl.appendChild(domify(html))
     }
 }

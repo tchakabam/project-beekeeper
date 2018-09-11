@@ -17,6 +17,7 @@
 declare var __VERSION__: any;
 
 export {BKAccessProxy,
+    BKAccessProxyEvents,
     BKAccessProxySettings,
     BKOptAccessProxySettings,
     BK_IProxy, BKAccessProxyEvents as Events} from "./bk-access-proxy";

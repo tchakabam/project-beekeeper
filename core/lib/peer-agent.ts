@@ -30,6 +30,7 @@ import { PeerTransportFilterFactory, IPeerTransport } from "./peer-transport";
 
 const PEER_PROTOCOL_VERSION = 1;
 
+// implement actual IResourceRequest
 class PeerResourceTransfer {
     constructor(
         readonly peerId: string,
@@ -44,7 +45,7 @@ export interface ITrackerClient  {
     destroy(): void;
 }
 
-export class DownloaderP2p extends StringlyTypedEventEmitter<
+export class PeerAgent extends StringlyTypedEventEmitter<
     "peer-connected" | "peer-closed" | "peer-data-updated" |
     "segment-loaded" | "segment-error" |
     "bytes-downloaded" | "bytes-uploaded"
@@ -79,80 +80,6 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         this._peerId = createHash("sha1").update(peerIdSource).digest("hex");
 
         this.debug("peer ID", this._peerId);
-    }
-
-    public setSwarmId(swarmId: string): void {
-        if (this._swarmId === swarmId) {
-            return;
-        }
-
-        this.destroy();
-
-        this._swarmId = swarmId;
-        this.debug("swarm ID", this._swarmId);
-
-        // Q: check what this hash is really about
-        this.createClient(createHash("sha1").update(PEER_PROTOCOL_VERSION + this._swarmId).digest("hex"));
-    }
-
-    private createClient(infoHash: string): void {
-        if (!this.settings.useP2P) {
-            return;
-        }
-
-        const clientOptions = {
-            infoHash: infoHash,
-            peerId: this._peerId,
-            announce: this.settings.trackerAnnounce,
-            rtcConfig: this.settings.rtcConfig
-        };
-
-        this._trackerClient = new Client(clientOptions);
-        if (!this._trackerClient) {
-            throw new Error('Tracker client instance does not exist');
-        }
-
-        // TODO: Add better handling here
-        this._trackerClient.on("error", (error: any) => this.debug("tracker error", error));
-        this._trackerClient.on("warning", (error: any) => this.debug("tracker warning", error));
-        this._trackerClient.on("update", (data: any) => this.debug("tracker update", data));
-        this._trackerClient.on("peer", this.onTrackerPeer.bind(this));
-
-        this._trackerClient.start();
-    }
-
-    private onTrackerPeer(trackerPeer: IPeerTransport): void {
-        this.debug("tracker peer", trackerPeer.id, trackerPeer);
-
-        if (this._peers.has(trackerPeer.id)) {
-            this.debug("tracker peer already connected", trackerPeer.id, trackerPeer);
-            trackerPeer.destroy();
-            return;
-        }
-
-        const getTransportWrapper = this.settings.mediaPeerTransportFilterFactory;
-        const mediaPeerTransport: IPeerTransport = getTransportWrapper(trackerPeer);
-        const peer = new Peer(mediaPeerTransport, this.settings);
-
-        peer.on("connect", this.onPeerConnect);
-        peer.on("close", this.onPeerClose);
-        peer.on("data-updated", this.onPeerDataUpdated);
-        peer.on("segment-request", this.onSegmentRequest);
-        peer.on("segment-loaded", this.onSegmentLoaded);
-        peer.on("segment-absent", this.onSegmentAbsent);
-        peer.on("segment-error", this.onSegmentError);
-        peer.on("segment-timeout", this.onSegmentTimeout);
-        peer.on("bytes-downloaded", this.onChunkBytesDownloaded);
-        peer.on("bytes-uploaded", this.onChunkBytesUploaded);
-
-        let peerCandidatesById = this._peerCandidates.get(peer.id);
-
-        if (!peerCandidatesById) {
-            peerCandidatesById = [];
-            this._peerCandidates.set(peer.id, peerCandidatesById);
-        }
-
-        peerCandidatesById.push(peer);
     }
 
     public enqueue(resource: BKResource): boolean {
@@ -242,15 +169,114 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         return overallSegmentsMap;
     }
 
-    private onChunkBytesDownloaded = (bytes: number) => {
+    public getPeerId(): string {
+        return this._peerId;
+    }
+
+    public getSwarmId(): string {
+        return this._swarmId;
+    }
+
+    public setSwarmId(swarmId: string): void {
+        if (this._swarmId === swarmId) {
+            return;
+        }
+
+        this.destroy();
+
+        this._swarmId = swarmId;
+        this.debug("swarm ID", this._swarmId);
+
+        // Q: check what this hash is really about
+        this._createClient(createHash("sha1").update(PEER_PROTOCOL_VERSION + this._swarmId).digest("hex"));
+    }
+
+    public getPeerConnections(): Peer[] {
+        return Array.from(this._peers.values());
+    }
+
+    private _createClient(infoHash: string): void {
+        if (!this.settings.useP2P) {
+            return;
+        }
+
+        const clientOptions = {
+            infoHash: infoHash,
+            peerId: this._peerId,
+            announce: this.settings.trackerAnnounce,
+            rtcConfig: this.settings.rtcConfig
+        };
+
+        this._trackerClient = new Client(clientOptions);
+        if (!this._trackerClient) {
+            throw new Error('Tracker client instance does not exist');
+        }
+
+        // TODO: Add better handling here
+        this._trackerClient.on("error", this._onTrackerError.bind(this));
+        this._trackerClient.on("warning", this._onTrackerWarning.bind(this));
+        this._trackerClient.on("update", this._onTrackerUpdate.bind(this));
+        this._trackerClient.on("peer", this._onTrackerPeer.bind(this));
+
+        this._trackerClient.start();
+    }
+
+    private _onTrackerError(data: any) {
+        console.error("Tracker-client error:", data);
+
+        throw new Error("Unhandled Beekeepr error");
+    }
+
+    private _onTrackerWarning(data: any) {
+        console.warn("Tracker-client warning:", data);
+    }
+
+    private _onTrackerUpdate(data: any) {
+        this.debug("Tracker-client update:", data);
+    }
+
+    private _onTrackerPeer(trackerPeer: IPeerTransport): void {
+        this.debug("tracker peer", trackerPeer.id, trackerPeer);
+
+        if (this._peers.has(trackerPeer.id)) {
+            this.debug("tracker peer already connected", trackerPeer.id, trackerPeer);
+            trackerPeer.destroy();
+            return;
+        }
+
+        const getTransportWrapper = this.settings.mediaPeerTransportFilterFactory;
+        const mediaPeerTransport: IPeerTransport = getTransportWrapper(trackerPeer);
+        const peer = new Peer(mediaPeerTransport, this.settings);
+
+        peer.on("connect", this._onPeerConnect);
+        peer.on("close", this._onPeerClose);
+        peer.on("data-updated", this._onPeerDataUpdated);
+        peer.on("segment-request", this._onSegmentRequest);
+        peer.on("segment-loaded", this._onSegmentLoaded);
+        peer.on("segment-absent", this._onSegmentAbsent);
+        peer.on("segment-error", this._onSegmentError);
+        peer.on("segment-timeout", this._onSegmentTimeout);
+        peer.on("bytes-downloaded", this._onChunkBytesDownloaded);
+        peer.on("bytes-uploaded", this._onChunkBytesUploaded);
+
+        let peerCandidatesById = this._peerCandidates.get(peer.id);
+        if (!peerCandidatesById) {
+            peerCandidatesById = [];
+            this._peerCandidates.set(peer.id, peerCandidatesById);
+        }
+
+        peerCandidatesById.push(peer);
+    }
+
+    private _onChunkBytesDownloaded = (bytes: number) => {
         this.emit("bytes-downloaded", bytes);
     }
 
-    private onChunkBytesUploaded = (bytes: number) => {
+    private _onChunkBytesUploaded = (bytes: number) => {
         this.emit("bytes-uploaded", bytes);
     }
 
-    private onPeerConnect = (peer: Peer) => {
+    private _onPeerConnect = (peer: Peer) => {
         const connectedPeer = this._peers.get(peer.id);
 
         if (connectedPeer) {
@@ -277,7 +303,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         this.emit("peer-connected", {id: peer.id, remoteAddress: peer.remoteAddress});
     }
 
-    private onPeerClose = (peer: Peer) => {
+    private _onPeerClose = (peer: Peer) => {
         if (this._peers.get(peer.id) != peer) {
             // Try to delete the peer candidate
 
@@ -309,11 +335,11 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         this.emit("peer-closed", peer.id);
     }
 
-    private onPeerDataUpdated = () => {
+    private _onPeerDataUpdated = () => {
         this.emit("peer-data-updated");
     }
 
-    private onSegmentRequest = (peer: Peer, segmentId: string) => {
+    private _onSegmentRequest = (peer: Peer, segmentId: string) => {
         const segment = this.cachedSegments.get(segmentId);
         if (segment) {
             peer.sendSegmentData(segmentId, segment.data!);
@@ -322,7 +348,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    private onSegmentLoaded = (peer: Peer, segmentId: string, data: ArrayBuffer) => {
+    private _onSegmentLoaded = (peer: Peer, segmentId: string, data: ArrayBuffer) => {
 
         this.debug(`resource "${segmentId}" loaded from peer (id=${peer.id})`);
 
@@ -339,12 +365,12 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    private onSegmentAbsent = (peer: Peer, segmentId: string) => {
+    private _onSegmentAbsent = (peer: Peer, segmentId: string) => {
         this._peerResourceTransfers.delete(segmentId);
         this.emit("peer-data-updated");
     }
 
-    private onSegmentError = (peer: Peer, segmentId: string, description: string) => {
+    private _onSegmentError = (peer: Peer, segmentId: string, description: string) => {
         const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
         if (peerResourceRequest) {
             this._peerResourceTransfers.delete(segmentId);
@@ -352,7 +378,7 @@ export class DownloaderP2p extends StringlyTypedEventEmitter<
         }
     }
 
-    private onSegmentTimeout = (peer: Peer, segmentId: string) => {
+    private _onSegmentTimeout = (peer: Peer, segmentId: string) => {
         const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
         if (peerResourceRequest) {
             this._peerResourceTransfers.delete(segmentId);

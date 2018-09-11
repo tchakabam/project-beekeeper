@@ -1,7 +1,7 @@
 <html>
     <head>
 
-        <title>Project Beekeeper -P2pMediaLoader - "Universal" Engine Testbench</title>
+        <title>Project Beekeeper - Standalone Engine Testbench</title>
 
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -14,10 +14,55 @@
         <!--
         <script src="/build/P2pMediaLoaderCore.umd.js"></script>
         -->
-        <script src="/build/P2pMediaLoaderUniversalEngine.umd.js"></script>
+        <script src="/build/BeekeeprUniversalEngine.umd.js"></script>
     </head>
 
     <body>
+        <h2>
+            project Beekeep&#8795;r
+        </h2>
+        <h3>
+            - standalone peer-agent -
+        </h3>
+
+        <div id="controls">
+
+            <p>
+                <label>Media-URL:&nbsp;</label><input id="url" type="text" size="60"/>
+            </p>
+
+            <p>
+                <label>Peer-ID:&nbsp;</label><input readonly id="peer-id" type="text" size="60"/>
+            </p>
+
+            <p>
+                <label>Swarm-ID:&nbsp;</label><input readonly id="swarm-id" type="text" size="60"/>
+            </p>
+
+            <p>
+                <label>RTC-configuration:&nbsp;</label><textarea readonly id="rtc-config" type="text" cols=60 rows=3></textarea>
+            </p>
+
+            <p>
+                <label>Tracker-connection:&nbsp;</label><input readonly id="tracker-connection" type="text" size="60"/>
+            </p>
+
+            <p>
+                <label>Peer connections:&nbsp;</label><textarea readonly id="peers" type="text" rows=3 cols="60"></textarea>
+            </p>
+
+            <p>
+                <button onclick="startStreaming()">Enter URL &#10026;</button>
+                <button onclick="play()">Play ►</button>
+                <button onclick="pause()">Pause &#10074;&#10074;</button>
+                <img id="playhead-on" width="25" src="light.jpg" style="display: none">
+            </p>
+
+            <div id="clock">
+                <label>Media-clock time (seconds):&nbsp;</label><input readonly id="media-clock" size="10"/>
+            </div>
+        </div>
+
         <div id="root">
         </div>
         <script src="./index.js"></script>

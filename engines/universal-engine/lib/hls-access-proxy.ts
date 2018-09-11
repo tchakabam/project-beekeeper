@@ -1,5 +1,5 @@
 import * as Debug from "debug";
-import { createHash } from "crypto"
+import { createHash } from "crypto";
 
 import { BK_IProxy } from "../../../core/lib";
 
@@ -61,7 +61,8 @@ export class HlsAccessProxy {
 
     private _createResourceRequestMaker(swarmId: string): ResourceRequestMaker {
         debug(`new ResourceRequestMaker for ${swarmId}`)
-        return ((url: string, requestOpts: ResourceRequestOptions) => this._createResourceRequest(swarmId, url, requestOpts));
+        return ((url: string, requestOpts: ResourceRequestOptions) =>
+            this._createResourceRequest(swarmId, url, requestOpts));
     }
 
     private _createResourceRequest(swarmId: string, url: string, requestOpts: ResourceRequestOptions): IResourceRequest {

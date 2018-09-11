@@ -24,7 +24,7 @@ import {Resource, ResourceEvents} from "../../ext-mod/emliri-es-libs/rialto/lib/
 
 const debug = Debug("bk:core:downloader-http");
 
-export class DownloaderHttp
+export class HttpDownloadQueue
     extends StringlyTypedEventEmitter<"segment-loaded" | "segment-error" | "bytes-downloaded"> {
 
     private _queue: Queue<BKResource> = new Queue();

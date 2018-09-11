@@ -1,8 +1,10 @@
+import { StringlyTypedEventEmitter } from "../../../core/lib/stringly-typed-event-emitter";
+
 const perf = window.performance;
 
 export const UPDATE_PERIOD_MS = 500;
 
-export class VirtualPlayhead {
+export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
 
     private _clockTime: number = 0;
     private _updateIntervalTimer: number = null;
@@ -11,7 +13,9 @@ export class VirtualPlayhead {
 
     constructor(
         private _onUpdate: (playhead: VirtualPlayhead) => void = null
-        ){}
+        ){
+            super();
+        }
 
     play() {
         if (this._isPlaying) {
@@ -30,6 +34,8 @@ export class VirtualPlayhead {
         this._updateCalledAt = null;
         window.clearInterval(this._updateIntervalTimer);
         this._updateIntervalTimer = null;
+
+        this._onUpdateTimer();
     }
 
     setCurrentTime(time: number) {
@@ -40,6 +46,20 @@ export class VirtualPlayhead {
         return this._clockTime / 1000;
     }
 
+    /**
+     * Should be understand as `isPlaying()´
+     */
+    isPushed(): boolean {
+        return this._isPlaying;
+    }
+
+    /**
+     * Wether the tape is moving
+     */
+    isSpinning() {
+
+    }
+
     private _onUpdateTimer() {
         const lastCalledAt = this._updateCalledAt;
         this._updateCalledAt = perf.now();
@@ -48,8 +68,10 @@ export class VirtualPlayhead {
             this._clockTime += (this._updateCalledAt - lastCalledAt);
         }
 
-        if (this._onUpdateTimer) {
+        if (this._onUpdate) {
             this._onUpdate(this);
         }
+
+        this.emit('update');
     }
 }

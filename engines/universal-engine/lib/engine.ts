@@ -1,12 +1,7 @@
-import { EventEmitter } from "eventemitter3";
-
 import {
     BK_IProxy,
     BKAccessProxy,
-    Events,
     BKOptAccessProxySettings,
-    BKResource,
-    BKAccessProxySettings
 } from "../../../core/lib";
 
 import { HlsAccessProxy } from "./hls-access-proxy";
@@ -14,80 +9,91 @@ import { HlsAccessProxy } from "./hls-access-proxy";
 import * as Debug from "debug";
 import { VirtualPlayhead } from "./virtual-playhead";
 import { MonitorDomView } from "./monitor-dom-view";
-import { BKAccessProxyEvents } from "../../../core/lib/bk-access-proxy";
 
 const debug = Debug("bk:engine:universal:engine");
 
-export class Engine /*extends EventEmitter*/ {
+export class Engine {
 
     public static isSupported(): boolean {
         return BKAccessProxy.isSupported();
     }
 
-    private downloader: BK_IProxy;
-    private sourceUrl: string | null = null;
-    private hlsProxy: HlsAccessProxy;
-
-    private playhead: VirtualPlayhead;
-
-    private monitorDomView: MonitorDomView;
+    private _proxy: BK_IProxy;
+    private _sourceUrl: string | null = null;
+    private _hlsProxy: HlsAccessProxy;
+    private _playhead: VirtualPlayhead;
+    private _monitorDomView: MonitorDomView;
 
     public constructor(settings: BKOptAccessProxySettings) {
         //super();
 
         debug("created universal adaptive media p2p engine", settings);
 
-        this.downloader = new BKAccessProxy(settings);
+        /**
+         * Access proxy for HTTP resources
+         */
+        this._proxy = new BKAccessProxy(settings);
 
-        this.monitorDomView = new MonitorDomView(this, 'root');
+        /**
+         * Accces proxy for HLS media (uses HTTP proxy)
+         */
+        this._hlsProxy = new HlsAccessProxy(this._proxy);
 
-        this.hlsProxy = new HlsAccessProxy(this.downloader);
-
-        // forward all events
-        // TODO: -> to Utils
-        /*
-        Object.keys(Events)
-            .map(eventKey => Events[eventKey as any])
-            .forEach(event => this.downloader.on(event, (...args: any[]) => this.emit(event, ...args)));
-        */
-
-        const playhead: VirtualPlayhead = new VirtualPlayhead(() => {
+        /**
+         * VirtualPlayhead clock control
+         */
+        this._playhead = new VirtualPlayhead(() => {
 
             // TODO: add to monitor
             //console.log('media-engine virtual clock time:', playhead.getCurrentTime())
 
-            this.hlsProxy.setFetchTarget(playhead.getCurrentTime());
+            this._hlsProxy.setFetchTarget(this._playhead.getCurrentTime());
         });
 
-        this.playhead = playhead;
-
-        playhead.play();
+        /**
+         * Monitoring view
+         */
+        this._monitorDomView = new MonitorDomView(this, 'root');
     }
 
-    public getProxy(): BK_IProxy{ return this.downloader; }
+    public getProxy(): BK_IProxy{
+        return this._proxy;
+    }
+
+    public getPlayhead(): VirtualPlayhead {
+        return this._playhead;
+    }
+
+    public getPeerId(): string {
+        return this._proxy.getPeerId();
+    }
+
+    public getSwarmId(): string {
+        return this._proxy.getSwarmId();
+    }
 
     public destroy() {
-        this.downloader.terminate();
+        this._proxy.terminate();
     }
 
     public setSource(url: string) {
-        if (this.sourceUrl) {
+        if (this._sourceUrl) {
             throw new Error("Source URL already set");
         }
 
-        this.sourceUrl = url;
+        this._sourceUrl = url;
 
         debug("set source", url)
 
         // FIXME: this is a hack, should only be used if running directly on a media-variant playlist (not master)
-        this.downloader.setSwarmId(this.hlsProxy.getSwarmIdForVariantPlaylist(url));
+        this._proxy.setSwarmId(this._hlsProxy.getSwarmIdForVariantPlaylist(url));
     }
 
-    public loadSource() {
-        if (!this.sourceUrl) {
-            throw new Error("Np source URL set");
+    public start() {
+        if (!this._sourceUrl) {
+            throw new Error("No source URL set");
         }
 
-        this.hlsProxy.setSource(this.sourceUrl);
+        this._hlsProxy.setSource(this._sourceUrl);
     }
-}
+ }

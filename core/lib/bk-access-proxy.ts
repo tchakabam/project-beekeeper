@@ -17,20 +17,24 @@
 import * as Debug from "debug";
 
 import {EventEmitter} from "eventemitter3"
-import {DownloaderHttp} from "./downloader-http";
-import {DownloaderP2p} from "./downloader-p2p";
+import {HttpDownloadQueue} from "./http-download-queue";
+import {PeerAgent} from "./peer-agent";
 import {BandwidthEstimator} from "./bandwidth-estimator";
 import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from "./peer-transport";
 
 import { BKResource, BKResourceMapData, BKResourceStatus } from "./bk-resource";
 
 import { getPerfNow } from "./perf-now";
+import { Peer } from "./peer";
 
 const getBrowserRtc = require("get-browser-rtc");
 
 const rtcDefaultConfig: RTCConfiguration = require("simple-peer").config;
 
-const trackerDefaultAnounce = ["wss://tracker.btorrent.xyz/", "wss://tracker.openwebtorrent.com/"];
+const trackerDefaultAnounce = [
+    "wss://tracker.btorrent.xyz/",
+    "wss://tracker.openwebtorrent.com/"
+];
 
 export type BKAccessProxySettings = {
     /**
@@ -168,24 +172,28 @@ export interface BK_IProxy {
     enqueue(resource: BKResource): void;
     abort(resource: BKResource): void;
     terminate(): void;
+    getSwarmId();
     setSwarmId(swarmId: string);
+    getPeerId(): string;
+    getPeerConnections(): Peer[];
+    getWRTCConfig(): RTCConfiguration;
+    readonly settings: BKAccessProxySettings;
 }
 
 export class BKAccessProxy extends EventEmitter implements BK_IProxy {
-
-    private readonly debug = Debug("bk:core:access-proxy");
-
-    private readonly _httpDownloader: DownloaderHttp;
-    private readonly _p2pDownloader: DownloaderP2p;
-    private readonly _storedSegments: Map<string, BKResource> = new Map();
-
-    private readonly bandwidthEstimator = new BandwidthEstimator();
-    private readonly settings: BKAccessProxySettings;
 
     public static isSupported(): boolean {
         const browserRtc = getBrowserRtc();
         return (browserRtc && (browserRtc.RTCPeerConnection.prototype.createDataChannel !== undefined));
     }
+
+    readonly debug = Debug("bk:core:access-proxy");
+    readonly settings: BKAccessProxySettings;
+
+    private _httpDownloader: HttpDownloadQueue;
+    private _p2pDownloader: PeerAgent;
+    private _storedSegments: Map<string, BKResource> = new Map();
+    private _bandwidthEstimator = new BandwidthEstimator();
 
     public constructor(settings: Partial<BKAccessProxySettings> = {}) {
         super();
@@ -193,12 +201,12 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.settings = Object.assign(defaultSettings, settings);
         this.debug("loader settings", this.settings);
 
-        this._httpDownloader = new DownloaderHttp();
+        this._httpDownloader = new HttpDownloadQueue();
         this._httpDownloader.on("segment-loaded", this.onSegmentLoaded);
         this._httpDownloader.on("segment-error", this.onSegmentError);
         this._httpDownloader.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("http", bytes));
 
-        this._p2pDownloader = new DownloaderP2p(this._storedSegments, this.settings);
+        this._p2pDownloader = new PeerAgent(this._storedSegments, this.settings);
         this._p2pDownloader.on("segment-loaded", this.onSegmentLoaded);
         this._p2pDownloader.on("segment-error", this.onSegmentError);
 
@@ -236,6 +244,22 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this._p2pDownloader.setSwarmId(swarmId);
     }
 
+    public getSwarmId(): string {
+        return this._p2pDownloader.getSwarmId();
+    }
+
+    public getPeerId(): string {
+        return this._p2pDownloader.getPeerId();
+    }
+
+    public getWRTCConfig(): RTCConfiguration {
+        return this.settings.rtcConfig;
+    }
+
+    public getPeerConnections(): Peer[] {
+        return this._p2pDownloader.getPeerConnections();
+    }
+
     public terminate(): void {
         this._httpDownloader.destroy();
         this._p2pDownloader.destroy();
@@ -252,12 +276,12 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     // Event handlers
 
     private onChunkBytesDownloaded = (method: "http" | "p2p", bytes: number) => {
-        this.bandwidthEstimator.addBytes(bytes, getPerfNow());
+        this._bandwidthEstimator.addBytes(bytes, getPerfNow());
         this.emit(BKAccessProxyEvents.ChunkBytesDownloaded, method, bytes);
     }
 
     private onChunkBytesUploaded = (method: "p2p", bytes: number) => {
-        this.bandwidthEstimator.addBytes(bytes, getPerfNow());
+        this._bandwidthEstimator.addBytes(bytes, getPerfNow());
         this.emit(BKAccessProxyEvents.ChunkBytesUploaded, method, bytes);
     }
 
