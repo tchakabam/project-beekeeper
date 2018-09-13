@@ -88,7 +88,8 @@ export class BKResourceRequest implements IResourceRequest {
         this.xhrState = XHRState.DONE;
 
         this.secondsUntilHeaders = 0;
-        this.secondsUntilDone = Date.now() - this._requestCreated;
+        this.secondsUntilDone = (getPerfNow() - this._requestCreated) / 1000;
+
         this.secondsUntilLoading = this.secondsUntilDone;
 
         this.loadedBytes = res.data.byteLength;

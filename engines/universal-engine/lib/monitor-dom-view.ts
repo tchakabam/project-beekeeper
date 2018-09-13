@@ -35,21 +35,26 @@ class ResourceTransferView {
     }
 
     getHTML(): string {
+
+        const loaded = this._resource.requestedBytesLoaded;
+        const total = this._resource.requestedBytesTotal;
+        const txKbps = (8 * this._resource.requestedBytesLoaded
+                        / this._resource.fetchLatency) / 1000;
+
+        //console.log('fetch-latency', this._resource.fetchLatency);
+
         return `<span><label>URL:</label> ${this._resource.getUrl()}</span><br>
             | <span>${ this._isP2p ? "P2P" : "HTTP" }</span>
-            | <span><label>Transferred (bytes):</label> ${this._resource.requestedBytesLoaded} / ${this._resource.requestedBytesTotal}</span>
-            | <span><label>Bitrate (kbits/sec): </label> ${((8 * this._resource.requestedBytesLoaded / this._resource.fetchLatency) / 1000).toFixed(1)}</span>
-            `;
+            | <span><label>Transferred (bytes):</label> ${loaded} / ${total}</span>
+            | <span><label>Bitrate (kbits/sec): </label> ${txKbps.toFixed(1)}</span>`;
     }
 
     private _onFetchProgress() {
-        console.log('progress')
 
         this._monitor.update();
     }
 
     private _onFetchSucceeded() {
-        console.log('succeeded')
 
         this._monitor.update();
     }
@@ -90,16 +95,12 @@ export class MonitorDomView {
 
     addResource(resourceRequest: BKResource, isP2p: boolean) {
 
-        console.log('addResource')
-
         this._resourceRequests.push(new ResourceTransferView(resourceRequest, isP2p, this));
 
         this.update();
     }
 
     update() {
-
-        console.log('view update')
 
         // use JSX ?
         let html = '<div>';

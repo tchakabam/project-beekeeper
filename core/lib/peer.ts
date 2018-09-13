@@ -23,6 +23,7 @@ import { IPeerTransport, PeerCommandType, PeerTransportCommand, decodeMediaPeerT
 
 import { BKResourceMap, BKResourceStatus, BKResourceMapData } from "./bk-resource";
 
+// TODO: Make this ResourceRequest
 class PeerDataTransmission {
     public bytesDownloaded = 0;
     public chunks: ArrayBuffer[] = [];
@@ -63,10 +64,10 @@ export class Peer extends StringlyTypedEventEmitter<
             }) {
         super();
 
-        this._peerTransport.on("connect", () => this.onPeerConnect());
-        this._peerTransport.on("close", () => this.onPeerClose());
+        this._peerTransport.on("connect", () => this._onPeerConnect());
+        this._peerTransport.on("close", () => this._onPeerClose());
         this._peerTransport.on("error", (error: Error) => this.debug("peer error", this._id, error, this));
-        this._peerTransport.on("data", this.onPeerData.bind(this));
+        this._peerTransport.on("data", this._onPeerData.bind(this));
 
         this._id = _peerTransport.id;
 
@@ -86,19 +87,99 @@ export class Peer extends StringlyTypedEventEmitter<
         };
     }
 
-    private onPeerConnect(): void {
-        this.debug(`remote peer (id='${this._id}') connection open`);
-        this._remoteAddress = this._peerTransport.remoteAddress;
-        this.emit("connect", this);
+    public destroy(): void {
+        this.debug(`destroying local handle for remote peer (id='${this._id}') -> goodbye mate :)`);
+        this._terminateSegmentRequest();
+        this._peerTransport.destroy();
     }
 
-    private onPeerClose(): void {
-        this.debug(`remote peer (id='${this._id}') connection closed`);
-        this.terminateSegmentRequest();
-        this.emit("close", this);
+    public getDownloadingSegmentId(): string | null {
+        return this._downloadingSegmentId;
     }
 
-    private handleSegmentChunk(data: ArrayBuffer): void {
+    public getSegmentsMap(): Map<string, BKResourceStatus> {
+        return this._segmentsMap;
+    }
+
+    public sendSegmentsMap(segments: BKResourceMapData): void {
+        this._sendCommand({"type": PeerCommandType.SegmentsMap, "segments": segments});
+    }
+
+    public sendSegmentData(segmentId: string, data: ArrayBuffer): void {
+        this._sendCommand({
+            type: PeerCommandType.SegmentData,
+            segment_id: segmentId,
+            segment_size: data.byteLength
+        });
+
+        let bytesLeft = data.byteLength;
+        while (bytesLeft > 0) {
+            const bytesToSend = (bytesLeft >= this.settings.webRtcMaxMessageSize ? this.settings.webRtcMaxMessageSize : bytesLeft);
+
+            const buffer: Buffer = this._isSafari11_0 ?
+                Buffer.from(data.slice(data.byteLength - bytesLeft, data.byteLength - bytesLeft + bytesToSend)) : // workaround for Safari 11.0 bug: https://bugs.webkit.org/show_bug.cgi?id=173052
+                Buffer.from(data, data.byteLength - bytesLeft, bytesToSend); // avoid memory copying
+
+            this._peerTransport.write(buffer);
+            bytesLeft -= bytesToSend;
+        }
+
+        this.emit("bytes-uploaded", data.byteLength);
+    }
+
+    public sendSegmentAbsent(segmentId: string): void {
+        this._sendCommand({type: PeerCommandType.SegmentAbsent, segment_id: segmentId});
+    }
+
+    public sendSegmentRequest(segmentId: string): void {
+        if (this._downloadingSegmentId) {
+            throw new Error("A segment is already downloading: " + this._downloadingSegmentId);
+        }
+
+        this._sendCommand({type: PeerCommandType.SegmentRequest, segment_id: segmentId});
+        this._downloadingSegmentId = segmentId;
+        this._scheduleResponseTimeout();
+    }
+
+    public sendCancelSegmentRequest(): void {
+        if (this._downloadingSegmentId) {
+            const segmentId = this._downloadingSegmentId;
+            this._terminateSegmentRequest();
+            this._sendCommand({type: PeerCommandType.CancelSegmentRequest, segment_id: segmentId});
+        }
+    }
+
+    private _sendCommand(command: PeerTransportCommand): void {
+        this.debug(`sending command "${command.type}" to remote peer (id='${this._id}') `);
+        this._peerTransport.write(JSON.stringify(command));
+    }
+
+    private _scheduleResponseTimeout(): void {
+        this._timer = window.setTimeout(() => {
+            this._timer = null;
+            if (!this._downloadingSegmentId) {
+                return;
+            }
+            const segmentId = this._downloadingSegmentId;
+            this.sendCancelSegmentRequest();
+            this.emit("segment-timeout", this, segmentId); // TODO: send peer not responding event
+        }, this.settings.p2pSegmentDownloadTimeout);
+    }
+
+    private _cancelResponseTimeout(): void {
+        if (this._timer) {
+            clearTimeout(this._timer);
+            this._timer = null;
+        }
+    }
+
+    private _terminateSegmentRequest() {
+        this._downloadingSegmentId = null;
+        this._downloadingSegment = null;
+        this._cancelResponseTimeout();
+    }
+
+    private _handleSegmentChunk(data: ArrayBuffer): void {
 
         this.debug(`received resource data from remote peer (id='${this._id}')`);
 
@@ -123,22 +204,22 @@ export class Peer extends StringlyTypedEventEmitter<
             }
 
             this.debug("peer resource transfer done", this._id, segmentId, this);
-            this.terminateSegmentRequest();
+            this._terminateSegmentRequest();
             this.emit("segment-loaded", this, segmentId, segmentData.buffer);
         } else if (this._downloadingSegment.bytesDownloaded > this._downloadingSegment.size) {
             this.debug(`remote peer (id='${this._id}'): transferred resource bytes mismatch!!!`, segmentId);
 
             console.error("There was a fatal peer transaction error :(");
 
-            this.terminateSegmentRequest();
+            this._terminateSegmentRequest();
             this.emit("segment-error", this, segmentId, "Too many bytes received for segment");
         }
     }
 
-    private onPeerData(data: ArrayBuffer): void {
+    private _onPeerData(data: ArrayBuffer): void {
         const command = decodeMediaPeerTransportCommand(data);
         if (!command) {
-            this.handleSegmentChunk(data);
+            this._handleSegmentChunk(data);
             return;
         }
 
@@ -146,7 +227,7 @@ export class Peer extends StringlyTypedEventEmitter<
             this.debug("peer segment download is interrupted by a command", this._id, this);
 
             const segmentId = this._downloadingSegment.id;
-            this.terminateSegmentRequest();
+            this._terminateSegmentRequest();
             this.emit("segment-error", this, segmentId, "Segment download is interrupted by a command");
             return;
         }
@@ -172,13 +253,13 @@ export class Peer extends StringlyTypedEventEmitter<
                         throw new Error("No `segment_size` found in data");
                     }
                     this._downloadingSegment = new PeerDataTransmission(command.segment_id, command.segment_size);
-                    this.cancelResponseTimeoutTimer();
+                    this._cancelResponseTimeout();
                 }
                 break;
 
             case PeerCommandType.SegmentAbsent:
                 if (this._downloadingSegmentId === command.segment_id) {
-                    this.terminateSegmentRequest();
+                    this._terminateSegmentRequest();
                     this._segmentsMap.delete(command.segment_id);
                     this.emit("segment-absent", this, command.segment_id);
                 }
@@ -193,95 +274,15 @@ export class Peer extends StringlyTypedEventEmitter<
         }
     }
 
-    private sendCommand(command: PeerTransportCommand): void {
-        this.debug(`sending command "${command.type}" to remote peer (id='${this._id}') `);
-        this._peerTransport.write(JSON.stringify(command));
+    private _onPeerConnect(): void {
+        this.debug(`remote peer (id='${this._id}') connection open`);
+        this._remoteAddress = this._peerTransport.remoteAddress;
+        this.emit("connect", this);
     }
 
-    public destroy(): void {
-        this.debug(`destroying local handle for remote peer (id='${this._id}') -> goodbye mate :)`);
-        this.terminateSegmentRequest();
-        this._peerTransport.destroy();
-    }
-
-    public getDownloadingSegmentId(): string | null {
-        return this._downloadingSegmentId;
-    }
-
-    public getSegmentsMap(): Map<string, BKResourceStatus> {
-        return this._segmentsMap;
-    }
-
-    public sendSegmentsMap(segments: BKResourceMapData): void {
-        this.sendCommand({"type": PeerCommandType.SegmentsMap, "segments": segments});
-    }
-
-    public sendSegmentData(segmentId: string, data: ArrayBuffer): void {
-        this.sendCommand({
-            type: PeerCommandType.SegmentData,
-            segment_id: segmentId,
-            segment_size: data.byteLength
-        });
-
-        let bytesLeft = data.byteLength;
-        while (bytesLeft > 0) {
-            const bytesToSend = (bytesLeft >= this.settings.webRtcMaxMessageSize ? this.settings.webRtcMaxMessageSize : bytesLeft);
-
-            const buffer: Buffer = this._isSafari11_0 ?
-                Buffer.from(data.slice(data.byteLength - bytesLeft, data.byteLength - bytesLeft + bytesToSend)) : // workaround for Safari 11.0 bug: https://bugs.webkit.org/show_bug.cgi?id=173052
-                Buffer.from(data, data.byteLength - bytesLeft, bytesToSend); // avoid memory copying
-
-            this._peerTransport.write(buffer);
-            bytesLeft -= bytesToSend;
-        }
-
-        this.emit("bytes-uploaded", data.byteLength);
-    }
-
-    public sendSegmentAbsent(segmentId: string): void {
-        this.sendCommand({type: PeerCommandType.SegmentAbsent, segment_id: segmentId});
-    }
-
-    public requestSegment(segmentId: string): void {
-        if (this._downloadingSegmentId) {
-            throw new Error("A segment is already downloading: " + this._downloadingSegmentId);
-        }
-
-        this.sendCommand({type: PeerCommandType.SegmentRequest, segment_id: segmentId});
-        this._downloadingSegmentId = segmentId;
-        this.runResponseTimeoutTimer();
-    }
-
-    public cancelSegmentRequest(): void {
-        if (this._downloadingSegmentId) {
-            const segmentId = this._downloadingSegmentId;
-            this.terminateSegmentRequest();
-            this.sendCommand({type: PeerCommandType.CancelSegmentRequest, segment_id: segmentId});
-        }
-    }
-
-    private runResponseTimeoutTimer(): void {
-        this._timer = window.setTimeout(() => {
-            this._timer = null;
-            if (!this._downloadingSegmentId) {
-                return;
-            }
-            const segmentId = this._downloadingSegmentId;
-            this.cancelSegmentRequest();
-            this.emit("segment-timeout", this, segmentId); // TODO: send peer not responding event
-        }, this.settings.p2pSegmentDownloadTimeout);
-    }
-
-    private cancelResponseTimeoutTimer(): void {
-        if (this._timer) {
-            clearTimeout(this._timer);
-            this._timer = null;
-        }
-    }
-
-    private terminateSegmentRequest() {
-        this._downloadingSegmentId = null;
-        this._downloadingSegment = null;
-        this.cancelResponseTimeoutTimer();
+    private _onPeerClose(): void {
+        this.debug(`remote peer (id='${this._id}') connection closed`);
+        this._terminateSegmentRequest();
+        this.emit("close", this);
     }
 }

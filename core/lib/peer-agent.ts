@@ -27,15 +27,21 @@ import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
 import {Peer} from "./peer";
 import { BKResource, BKResourceStatus, BKResourceMapData } from "./bk-resource";
 import { PeerTransportFilterFactory, IPeerTransport } from "./peer-transport";
+import { getPerfNow } from "./perf-now";
 
 const PEER_PROTOCOL_VERSION = 1;
 
 // implement actual IResourceRequest
 class PeerResourceTransfer {
+
+    readonly createdAt;
+
     constructor(
         readonly peerId: string,
-        readonly resource: BKResource
-    ) {}
+        readonly resource: BKResource,
+    ) {
+        this.createdAt = getPerfNow();
+    }
 }
 
 export interface ITrackerClient  {
@@ -82,44 +88,6 @@ export class PeerAgent extends StringlyTypedEventEmitter<
         this.debug("peer ID", this._peerId);
     }
 
-    public enqueue(resource: BKResource): boolean {
-        if (this.isDownloading(resource)) {
-            return false;
-        }
-
-        const entries = this._peers.values();
-        for (let entry = entries.next(); !entry.done; entry = entries.next()) {
-            const peer = entry.value;
-            if ((peer.getDownloadingSegmentId() == null) &&
-                    (peer.getSegmentsMap().get(resource.id) === BKResourceStatus.Loaded)) {
-                peer.requestSegment(resource.id);
-                this._peerResourceTransfers.set(resource.id, new PeerResourceTransfer(peer.id, resource));
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public abort(segment: BKResource): void {
-        const peerSegmentRequest = this._peerResourceTransfers.get(segment.id);
-        if (peerSegmentRequest) {
-            const peer = this._peers.get(peerSegmentRequest.peerId);
-            if (peer) {
-                peer.cancelSegmentRequest();
-            }
-            this._peerResourceTransfers.delete(segment.id);
-        }
-    }
-
-    public isDownloading(segment: BKResource): boolean {
-        return this._peerResourceTransfers.has(segment.id);
-    }
-
-    public getActiveDownloadsCount(): number {
-        return this._peerResourceTransfers.size;
-    }
-
     public destroy(): void {
         this._swarmId = null;
 
@@ -140,6 +108,50 @@ export class PeerAgent extends StringlyTypedEventEmitter<
             }
         });
         this._peerCandidates.clear();
+    }
+
+    public enqueue(resource: BKResource): boolean {
+        if (this.isDownloading(resource)) {
+            return false;
+        }
+
+        const entries = this._peers.values();
+        for (let entry = entries.next(); !entry.done; entry = entries.next()) {
+            const peer = entry.value;
+            if ((peer.getDownloadingSegmentId() == null) &&
+                    (peer.getSegmentsMap().get(resource.id) === BKResourceStatus.Loaded)) {
+
+                this._peerResourceTransfers.set(
+                    resource.id,
+                    new PeerResourceTransfer(peer.id, resource)
+                );
+
+                peer.sendSegmentRequest(resource.id);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public abort(segment: BKResource): void {
+        const peerSegmentRequest = this._peerResourceTransfers.get(segment.id);
+        if (peerSegmentRequest) {
+            const peer = this._peers.get(peerSegmentRequest.peerId);
+            if (peer) {
+                peer.sendCancelSegmentRequest();
+            }
+            this._peerResourceTransfers.delete(segment.id);
+        }
+    }
+
+    public isDownloading(segment: BKResource): boolean {
+        return this._peerResourceTransfers.has(segment.id);
+    }
+
+    public getActiveDownloadsCount(): number {
+        return this._peerResourceTransfers.size;
     }
 
     public sendSegmentsMapToAll(segmentsMap: BKResourceMapData): void {
@@ -358,7 +370,9 @@ export class PeerAgent extends StringlyTypedEventEmitter<
 
             const res = peerResourceRequest.resource;
 
-            res.setExternalyFetchedBytes(data.byteLength, data.byteLength);
+            const responseLatencySeconds = (getPerfNow() - peerResourceRequest.createdAt) / 1000;
+
+            res.setExternalyFetchedBytes(data.byteLength, data.byteLength, responseLatencySeconds);
             res.setBuffer(data);
 
             this.emit("segment-loaded", peerResourceRequest.resource, data);
