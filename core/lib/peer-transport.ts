@@ -46,6 +46,9 @@ export interface IPeerTransport {
     on(event: "data", handler: (data: ArrayBuffer) => void): void;
 
     destroy(): void;
+
+    setMaxBandwidthBps(n: number): boolean;
+    setMinLatencyMs(n: number): boolean;
 }
 
 export type PeerTransportFilterFactory = (transport: IPeerTransport) => IPeerTransport;
@@ -67,6 +70,7 @@ export class DefaultPeerTransportFilter
         this._transport.on("close", () => this._onClose());
         this._transport.on("error", (error) => this._onError(error));
         this._transport.on("data", (data) => this._onData(data));
+
     }
 
     get id(): string {
@@ -88,6 +92,18 @@ export class DefaultPeerTransportFilter
 
     destroy(): void {
         this._transport.destroy();
+    }
+
+    setMaxBandwidthBps(n: number): boolean {
+        this._netEmIn.maxBandwidthBps = n;
+        this._netEmOut.maxBandwidthBps = n;
+        return true;
+    }
+
+    setMinLatencyMs(n: number): boolean {
+        this._netEmIn.maxBandwidthBps = n;
+        this._netEmOut.maxBandwidthBps = n;
+        return true;
     }
 
     private _onConnect() {
