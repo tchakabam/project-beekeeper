@@ -191,7 +191,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     readonly settings: BKAccessProxySettings;
 
     private _httpDownloader: HttpDownloadQueue;
-    private _p2pDownloader: PeerAgent;
+    private _peerAgent: PeerAgent;
     private _storedSegments: Map<string, BKResource> = new Map();
     private _bandwidthEstimator = new BandwidthEstimator();
 
@@ -206,16 +206,16 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this._httpDownloader.on("segment-error", this.onSegmentError);
         this._httpDownloader.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("http", bytes));
 
-        this._p2pDownloader = new PeerAgent(this._storedSegments, this.settings);
-        this._p2pDownloader.on("segment-loaded", this.onSegmentLoaded);
-        this._p2pDownloader.on("segment-error", this.onSegmentError);
+        this._peerAgent = new PeerAgent(this._storedSegments, this.settings);
+        this._peerAgent.on("segment-loaded", this.onSegmentLoaded);
+        this._peerAgent.on("segment-error", this.onSegmentError);
 
-        this._p2pDownloader.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("p2p", bytes));
-        this._p2pDownloader.on("bytes-uploaded", (bytes: number) => this.onChunkBytesUploaded("p2p", bytes));
+        this._peerAgent.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("p2p", bytes));
+        this._peerAgent.on("bytes-uploaded", (bytes: number) => this.onChunkBytesUploaded("p2p", bytes));
 
-        this._p2pDownloader.on("peer-connected", this.onPeerConnect);
-        this._p2pDownloader.on("peer-closed", this.onPeerClose);
-        this._p2pDownloader.on("peer-data-updated", this.onPeerDataUpdated);
+        this._peerAgent.on("peer-connected", this.onPeerConnect);
+        this._peerAgent.on("peer-closed", this.onPeerClose);
+        this._peerAgent.on("peer-data-updated", this.onPeerDataUpdated);
     }
 
     public enqueue(resource: BKResource): void {
@@ -224,9 +224,9 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.emit(BKAccessProxyEvents.ResourceRequested, resource);
 
         // update Swarm ID
-        this._p2pDownloader.setSwarmId(resource.swarmId);
+        this._peerAgent.setSwarmId(resource.swarmId);
 
-        if (this._p2pDownloader.enqueue(resource)) {
+        if (this._peerAgent.enqueue(resource)) {
             this.debug("enqueued to p2p downloader")
             this.emit(BKAccessProxyEvents.ResourceEnqueuedP2p, resource);
         } else {
@@ -241,15 +241,15 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     }
 
     public setSwarmId(swarmId: string) {
-        this._p2pDownloader.setSwarmId(swarmId);
+        this._peerAgent.setSwarmId(swarmId);
     }
 
     public getSwarmId(): string {
-        return this._p2pDownloader.getSwarmId();
+        return this._peerAgent.getSwarmId();
     }
 
     public getPeerId(): string {
-        return this._p2pDownloader.getPeerId();
+        return this._peerAgent.getPeerId();
     }
 
     public getWRTCConfig(): RTCConfiguration {
@@ -257,12 +257,12 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     }
 
     public getPeerConnections(): Peer[] {
-        return this._p2pDownloader.getPeerConnections();
+        return this._peerAgent.getPeerConnections();
     }
 
     public terminate(): void {
         this._httpDownloader.destroy();
-        this._p2pDownloader.destroy();
+        this._peerAgent.destroy();
         this._storedSegments.clear();
     }
 
@@ -294,7 +294,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         this.emit(BKAccessProxyEvents.SegmentLoaded, segment);
 
-        this._p2pDownloader.sendSegmentsMapToAll(this._createSegmentsMap());
+        this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
     }
 
     private onSegmentError = (segment: BKResource, event: any) => {
@@ -302,7 +302,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     }
 
     private onPeerConnect = (peer: {id: string}) => {
-        this._p2pDownloader.sendSegmentsMap(peer.id, this._createSegmentsMap());
+        this._peerAgent.sendSegmentsMap(peer.id, this._createSegmentsMap());
         this.emit(BKAccessProxyEvents.PeerConnect, peer);
     }
 

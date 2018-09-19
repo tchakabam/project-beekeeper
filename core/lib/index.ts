@@ -16,11 +16,14 @@
 
 declare var __VERSION__: any;
 
-export {BKAccessProxy,
+export {
+    BKAccessProxy,
     BKAccessProxyEvents,
     BKAccessProxySettings,
     BKOptAccessProxySettings,
-    BK_IProxy, BKAccessProxyEvents as Events} from "./bk-access-proxy";
+    BK_IProxy,
+    BKAccessProxyEvents as Events
+} from "./bk-access-proxy";
 
 export {BKResource} from './bk-resource'
 

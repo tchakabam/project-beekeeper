@@ -1,5 +1,7 @@
 import { StringlyTypedEventEmitter } from "./stringly-typed-event-emitter";
 
+import {NetworkChannelEmulator} from "./network-channel-emulator";
+
 import * as Debug from "debug";
 import { BKResourceMapData } from "./bk-resource";
 
@@ -52,6 +54,12 @@ export class DefaultPeerTransportFilter
     extends StringlyTypedEventEmitter<"connect" | "close" | "error" | "data">
     implements IPeerTransport {
 
+    private _netEmIn: NetworkChannelEmulator
+        = new NetworkChannelEmulator(this._onNetChannelInData.bind(this));
+
+    private _netEmOut: NetworkChannelEmulator
+        = new NetworkChannelEmulator(this._onNetChannelOutData.bind(this));
+
     constructor(private _transport: IPeerTransport) {
         super();
 
@@ -75,7 +83,7 @@ export class DefaultPeerTransportFilter
         } else {
             debug(`writing data to remote peer (id='${this.id}') with Buffer object, byte-length is ${buffer.byteLength}`)
         }
-        this._transport.write(buffer);
+        this._netEmOut.push(buffer);
     }
 
     destroy(): void {
@@ -98,7 +106,16 @@ export class DefaultPeerTransportFilter
     }
 
     private _onData(data: ArrayBuffer) {
-        debug("data")
+        debug("input data")
+        this._netEmIn.push(data);
+    }
+
+    private _onNetChannelInData(data: ArrayBuffer) {
+        debug("input netem data")
         this.emit("data", data);
+    }
+
+    private _onNetChannelOutData(data: Buffer) {
+        this._transport.write(data);
     }
 }

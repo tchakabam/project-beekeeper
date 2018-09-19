@@ -111,7 +111,9 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     }
 
     public enqueue(resource: BKResource): boolean {
+
         if (this.isDownloading(resource)) {
+            console.warn()
             return false;
         }
 
