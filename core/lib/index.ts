@@ -27,6 +27,6 @@ export {
 
 export {BKResource} from './bk-resource'
 
-export const version = __VERSION__;
+export const version =  !global ? __VERSION__ : "";
 
 

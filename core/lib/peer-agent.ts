@@ -31,6 +31,8 @@ import { getPerfNow } from "./perf-now";
 
 const PEER_PROTOCOL_VERSION = 1;
 
+declare var global: any;
+
 // implement actual IResourceRequest
 class PeerResourceTransfer {
 
@@ -218,7 +220,9 @@ export class PeerAgent extends StringlyTypedEventEmitter<
             infoHash: infoHash,
             peerId: this._peerId,
             announce: this.settings.trackerAnnounce,
-            rtcConfig: this.settings.rtcConfig
+            rtcConfig: this.settings.rtcConfig,
+            port: 19699, // only needed in node
+            wrtc: global ? global.wrtc : null
         };
 
         this._trackerClient = new Client(clientOptions);

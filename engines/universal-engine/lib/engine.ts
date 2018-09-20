@@ -24,7 +24,7 @@ export class Engine {
     private _playhead: VirtualPlayhead;
     private _monitorDomView: MonitorDomView;
 
-    public constructor(settings: BKOptAccessProxySettings) {
+    public constructor(settings: BKOptAccessProxySettings = {}) {
         //super();
 
         debug("created universal adaptive media p2p engine", settings);
@@ -53,7 +53,7 @@ export class Engine {
         /**
          * Monitoring view
          */
-        this._monitorDomView = new MonitorDomView(this, 'root');
+        this._monitorDomView = !global ? new MonitorDomView(this, 'root') : null
     }
 
     public getProxy(): BK_IProxy{
