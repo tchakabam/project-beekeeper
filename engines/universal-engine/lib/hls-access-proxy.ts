@@ -1,22 +1,22 @@
-import * as Debug from "debug";
-import { createHash } from "crypto";
+import * as Debug from 'debug';
+import { createHash } from 'crypto';
 
-import { BK_IProxy } from "../../../core/lib";
+import { BK_IProxy } from '../../../core/lib';
 
-import { Scheduler } from "../../../ext-mod/emliri-es-libs/objec-ts/lib/scheduler";
-import { HlsM3u8File } from "../../../ext-mod/emliri-es-libs/rialto/lib/hls-m3u8";
-import { ResourceRequestMaker, IResourceRequest, ResourceRequestOptions } from "../../../ext-mod/emliri-es-libs/rialto/lib/resource-request";
-import { AdaptiveMediaStreamConsumer } from "../../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media-client"
-import { AdaptiveMedia, AdaptiveMediaPeriod } from "../../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media";
-import { MediaSegment } from "../../../ext-mod/emliri-es-libs/rialto";
+import { Scheduler } from '../../../ext-mod/emliri-es-libs/objec-ts/lib/scheduler';
+import { HlsM3u8File } from '../../../ext-mod/emliri-es-libs/rialto/lib/hls-m3u8';
+import { ResourceRequestMaker, IResourceRequest, ResourceRequestOptions } from '../../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
+import { AdaptiveMediaStreamConsumer } from '../../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media-client';
+import { AdaptiveMedia, AdaptiveMediaPeriod } from '../../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media';
+import { MediaSegment } from '../../../ext-mod/emliri-es-libs/rialto';
 
-import { BKResourceRequest } from "./bk-resource-request"; // TODO: move to core
+import { BKResourceRequest } from './bk-resource-request'; // TODO: move to core
 
-const SWARM_URN_PREFIX = "urn:livepeer:beekeeper:bittorrent:swarm-id";
+const SWARM_URN_PREFIX = 'urn:livepeer:beekeeper:bittorrent:swarm-id';
 
 const SCHEDULER_FRAMERATE: number = 1;
 
-const debug = Debug("bk:engine:universal:hls-access-proxy");
+const debug = Debug('bk:engine:universal:hls-access-proxy');
 
 export class HlsAccessProxy {
 
@@ -28,7 +28,7 @@ export class HlsAccessProxy {
 
     public constructor(loader: BK_IProxy) {
 
-        debug("created HLS access-proxy")
+        debug('created HLS access-proxy');
 
         this.downloader = loader;
     }
@@ -53,14 +53,14 @@ export class HlsAccessProxy {
         }
 
         debug(`creating swarm ID for manifest URL: ${manifestUrl}`);
-        const swarmId = SWARM_URN_PREFIX + ":" + createHash("sha1").update(manifestUrl).digest("hex");
+        const swarmId = SWARM_URN_PREFIX + ':' + createHash('sha1').update(manifestUrl).digest('hex');
         debug(`created swarm ID: ${swarmId}`);
         this._swarmIdCache[manifestUrl] = swarmId;
         return swarmId;
     }
 
     private _createResourceRequestMaker(swarmId: string): ResourceRequestMaker {
-        debug(`new ResourceRequestMaker for ${swarmId}`)
+        debug(`new ResourceRequestMaker for ${swarmId}`);
         return ((url: string, requestOpts: ResourceRequestOptions) =>
             this._createResourceRequest(swarmId, url, requestOpts));
     }
@@ -73,9 +73,9 @@ export class HlsAccessProxy {
         const m3u8 = new HlsM3u8File(url);
 
         m3u8.fetch().then(() => {
-          m3u8.parse().then((adaptiveMediaPeriods: AdaptiveMediaPeriod[]) => {
+            m3u8.parse().then((adaptiveMediaPeriods: AdaptiveMediaPeriod[]) => {
                 this._onAdaptiveMediaPeriodsParsed(url, adaptiveMediaPeriods);
-            })
+            });
         });
     }
 
@@ -92,7 +92,7 @@ export class HlsAccessProxy {
                 const swarmId = this.getSwarmIdForVariantPlaylist(url);
 
                 segment.setRequestMaker(this._createResourceRequestMaker(swarmId));
-            })
+            });
 
             const consumer: AdaptiveMediaStreamConsumer =
                 new AdaptiveMediaStreamConsumer(media, this.scheduler, (segment: MediaSegment) => {
@@ -103,11 +103,11 @@ export class HlsAccessProxy {
 
             consumer.maxConcurrentFetchInit = Infinity;
             //consumer.updateFetchTarget(5);
-        })
+        });
     }
 
     private _onSegmentBuffered(segment: MediaSegment) {
-        debug("segment buffered:", segment)
+        debug('segment buffered:', segment);
     }
 }
 

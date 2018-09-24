@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {EventEmitter} from "eventemitter3";
+import {EventEmitter} from 'eventemitter3';
 
 export class StringlyTypedEventEmitter<T extends string> extends EventEmitter {
     public on(event: T, listener: (...args: any[]) => void) { return super.on(event, listener); }

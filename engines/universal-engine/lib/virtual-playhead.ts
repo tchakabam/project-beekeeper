@@ -1,4 +1,4 @@
-import { StringlyTypedEventEmitter } from "../../../core/lib/stringly-typed-event-emitter";
+import { StringlyTypedEventEmitter } from '../../../core/lib/stringly-typed-event-emitter';
 
 const perf = window.performance;
 
@@ -13,9 +13,9 @@ export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
 
     constructor(
         private _onUpdate: (playhead: VirtualPlayhead) => void = null
-        ){
-            super();
-        }
+    ){
+        super();
+    }
 
     play() {
         if (this._isPlaying) {

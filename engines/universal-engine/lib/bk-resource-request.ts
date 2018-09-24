@@ -1,11 +1,11 @@
-import * as Debug from "debug";
+import * as Debug from 'debug';
 
-import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from "../../../ext-mod/emliri-es-libs/rialto/lib/resource-request";
-import { XHRState, XHRData, XHR } from "../../../ext-mod/emliri-es-libs/rialto/lib/xhr";
-import { BKResource, BK_IProxy, Events } from "../../../core/lib";
-import { getPerfNow } from "../../../core/lib/perf-now";
+import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from '../../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
+import { XHRState, XHRData, XHR } from '../../../ext-mod/emliri-es-libs/rialto/lib/xhr';
+import { BKResource, BK_IProxy, Events } from '../../../core/lib';
+import { getPerfNow } from '../../../core/lib/perf-now';
 
-const debug = Debug("bk:engine:universal:resource-request");
+const debug = Debug('bk:engine:universal:resource-request');
 
 export class BKResourceRequest implements IResourceRequest {
 
@@ -69,7 +69,7 @@ export class BKResourceRequest implements IResourceRequest {
 
     private _invokeRequestCallback() {
         if (this._resourceRequestCallback) {
-            debug("invoke resource request callback")
+            debug('invoke resource request callback');
             this._resourceRequestCallback(this, false);
         }
     }
@@ -110,7 +110,7 @@ export class BKResourceRequest implements IResourceRequest {
             return;
         }
 
-        debug(`segment error: ${this.url}`)
+        debug(`segment error: ${this.url}`);
     }
 
     private onSegmentAbort(segment: BKResource) {
@@ -122,7 +122,7 @@ export class BKResourceRequest implements IResourceRequest {
             return;
         }
 
-        debug(`segment aborted: ${this.url}`)
+        debug(`segment aborted: ${this.url}`);
 
         this.hasBeenAborted = true;
     }

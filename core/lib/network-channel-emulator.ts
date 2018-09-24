@@ -1,4 +1,4 @@
-export type NetworkChannelEmulatorDataCb = (data: ArrayBuffer | Buffer | string) => void
+export type NetworkChannelEmulatorDataCb = (data: ArrayBuffer | Buffer | string) => void;
 
 export const MIN_WINDOW_TIME_MS = 40;
 
@@ -9,7 +9,7 @@ export class NetworkChannelEmulatorDataItem {
     ) {}
 
     get byteLength(): number {
-        if (typeof this.data === "string") {
+        if (typeof this.data === 'string') {
             return this.data.length;
         }
         return this.data.byteLength;
@@ -93,7 +93,7 @@ export class NetworkChannelEmulator {
         const bytesTotal = this._queue.reduce((previousValue, currentValue) => {
             previousValue += currentValue.byteLength;
             return previousValue;
-        }, 0)
+        }, 0);
 
         return 8 * bytesTotal / (timeDiffMs / 1000);
     }
@@ -112,9 +112,9 @@ export class NetworkChannelEmulator {
 
         const maxBytesInWindow = (this._maxBandwidthBps / 8) * (windowTimeEffectiveMs / 1000);
 
-        console.log('window ms:', windowTimeEffectiveMs)
-        console.log('max bytes in window:', maxBytesInWindow)
-        console.log('queue bw:', queueBw)
+        console.log('window ms:', windowTimeEffectiveMs);
+        console.log('max bytes in window:', maxBytesInWindow);
+        console.log('queue bw:', queueBw);
 
         let pushedBytes = 0;
         function shouldPushNext() {
@@ -145,4 +145,4 @@ export class NetworkChannelEmulator {
 
         console.log('output rate:', this._outputRate);
     }
-};
+}

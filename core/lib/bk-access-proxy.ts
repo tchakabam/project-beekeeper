@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-import * as Debug from "debug";
+import * as Debug from 'debug';
 
-import {EventEmitter} from "eventemitter3"
-import {HttpDownloadQueue} from "./http-download-queue";
-import {PeerAgent} from "./peer-agent";
-import {BandwidthEstimator} from "./bandwidth-estimator";
-import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from "./peer-transport";
+import {EventEmitter} from 'eventemitter3';
+import {HttpDownloadQueue} from './http-download-queue';
+import {PeerAgent} from './peer-agent';
+import {BandwidthEstimator} from './bandwidth-estimator';
+import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from './peer-transport';
 
-import { BKResource, BKResourceMapData, BKResourceStatus } from "./bk-resource";
+import { BKResource, BKResourceMapData, BKResourceStatus } from './bk-resource';
 
-import { getPerfNow } from "./perf-now";
-import { Peer } from "./peer";
+import { getPerfNow } from './perf-now';
+import { Peer } from './peer';
 
-const getBrowserRtc = require("get-browser-rtc");
+const getBrowserRtc = require('get-browser-rtc');
 
-const rtcDefaultConfig: RTCConfiguration = require("simple-peer").config;
+const rtcDefaultConfig: RTCConfiguration = require('simple-peer').config;
 
 const trackerDefaultAnounce = [
-    "wss://tracker.btorrent.xyz/",
-    "wss://tracker.openwebtorrent.com/"
+    'wss://tracker.btorrent.xyz/',
+    'wss://tracker.openwebtorrent.com/'
 ];
 
 export type BKAccessProxySettings = {
@@ -89,7 +89,7 @@ export type BKAccessProxySettings = {
      * Default: just returns the initial transport.
      */
     mediaPeerTransportFilterFactory: PeerTransportFilterFactory
-}
+};
 
 export type BKOptAccessProxySettings = Partial<BKAccessProxySettings>;
 
@@ -118,53 +118,53 @@ export const defaultSettings: BKAccessProxySettings = {
 
 export enum BKAccessProxyEvents {
 
-    ResourceRequested = "resource:requested",
+    ResourceRequested = 'resource:requested',
 
-    ResourceEnqueuedHttp = "resource:enqueued:http",
+    ResourceEnqueuedHttp = 'resource:enqueued:http',
 
-    ResourceEnqueuedP2p = "resource:enqueued:p2p",
+    ResourceEnqueuedP2p = 'resource:enqueued:p2p',
 
     /**
      * Emitted when segment has been downloaded.
      * Args: segment
      */
-    SegmentLoaded = "segment_loaded",
+    SegmentLoaded = 'segment_loaded',
 
     /**
      * Emitted when an error occurred while loading the segment.
      * Args: segment, error
      */
-    SegmentError = "segment_error",
+    SegmentError = 'segment_error',
 
     /**
      * Emitted for each segment that does not hit into a new segments queue when the load() method is called.
      * Args: segment
      */
-    SegmentAbort = "segment_abort",
+    SegmentAbort = 'segment_abort',
 
     /**
      * Emitted when a peer is connected.
      * Args: peer
      */
-    PeerConnect = "peer_connect",
+    PeerConnect = 'peer_connect',
 
     /**
      * Emitted when a peer is disconnected.
      * Args: peerId
      */
-    PeerClose = "peer_close",
+    PeerClose = 'peer_close',
 
     /**
      * Emitted when a segment chunk has been downloaded.
      * Args: method (can be "http" or "p2p" only), bytes
      */
-    ChunkBytesDownloaded = "chunk_bytes_downloaded",
+    ChunkBytesDownloaded = 'chunk_bytes_downloaded',
 
     /**
      * Emitted when a segment chunk has been uploaded.
      * Args: method (can be "p2p" only), bytes
      */
-    ChunkBytesUploaded = "chunk_bytes_uploaded"
+    ChunkBytesUploaded = 'chunk_bytes_uploaded'
 }
 
 export interface BK_IProxy {
@@ -187,7 +187,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         return (browserRtc && (browserRtc.RTCPeerConnection.prototype.createDataChannel !== undefined));
     }
 
-    readonly debug = Debug("bk:core:access-proxy");
+    readonly debug = Debug('bk:core:access-proxy');
     readonly settings: BKAccessProxySettings;
 
     private _httpDownloader: HttpDownloadQueue;
@@ -199,27 +199,27 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         super();
 
         this.settings = Object.assign(defaultSettings, settings);
-        this.debug("loader settings", this.settings);
+        this.debug('loader settings', this.settings);
 
         this._httpDownloader = new HttpDownloadQueue();
-        this._httpDownloader.on("segment-loaded", this.onSegmentLoaded);
-        this._httpDownloader.on("segment-error", this.onSegmentError);
-        this._httpDownloader.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("http", bytes));
+        this._httpDownloader.on('segment-loaded', this.onSegmentLoaded);
+        this._httpDownloader.on('segment-error', this.onSegmentError);
+        this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
 
         this._peerAgent = new PeerAgent(this._storedSegments, this.settings);
-        this._peerAgent.on("segment-loaded", this.onSegmentLoaded);
-        this._peerAgent.on("segment-error", this.onSegmentError);
+        this._peerAgent.on('segment-loaded', this.onSegmentLoaded);
+        this._peerAgent.on('segment-error', this.onSegmentError);
 
-        this._peerAgent.on("bytes-downloaded", (bytes: number) => this.onChunkBytesDownloaded("p2p", bytes));
-        this._peerAgent.on("bytes-uploaded", (bytes: number) => this.onChunkBytesUploaded("p2p", bytes));
+        this._peerAgent.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('p2p', bytes));
+        this._peerAgent.on('bytes-uploaded', (bytes: number) => this.onChunkBytesUploaded('p2p', bytes));
 
-        this._peerAgent.on("peer-connected", this.onPeerConnect);
-        this._peerAgent.on("peer-closed", this.onPeerClose);
-        this._peerAgent.on("peer-data-updated", this.onPeerDataUpdated);
+        this._peerAgent.on('peer-connected', this.onPeerConnect);
+        this._peerAgent.on('peer-closed', this.onPeerClose);
+        this._peerAgent.on('peer-data-updated', this.onPeerDataUpdated);
     }
 
     public enqueue(resource: BKResource): void {
-        this.debug("enqueueing:", resource);
+        this.debug('enqueueing:', resource);
 
         this.emit(BKAccessProxyEvents.ResourceRequested, resource);
 
@@ -227,10 +227,10 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this._peerAgent.setSwarmId(resource.swarmId);
 
         if (this._peerAgent.enqueue(resource)) {
-            this.debug("enqueued to p2p downloader")
+            this.debug('enqueued to p2p downloader');
             this.emit(BKAccessProxyEvents.ResourceEnqueuedP2p, resource);
         } else {
-            this.debug("falling back to http downloader")
+            this.debug('falling back to http downloader');
             this._httpDownloader.enqueue(resource);
             this.emit(BKAccessProxyEvents.ResourceEnqueuedHttp, resource);
         }
@@ -286,7 +286,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     }
 
     private onSegmentLoaded = (segment: BKResource, data: ArrayBuffer) => {
-        this.debug("segment loaded", segment.id, segment.uri);
+        this.debug('segment loaded', segment.id, segment.uri);
 
         this._storedSegments.set(segment.id, segment);
 
@@ -311,6 +311,6 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     }
 
     private onPeerDataUpdated = () => {
-        this.debug("peer data updated");
+        this.debug('peer data updated');
     }
 }

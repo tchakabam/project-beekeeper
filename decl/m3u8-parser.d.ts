@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-declare module "m3u8-parser" {
+declare module 'm3u8-parser' {
     export const Parser: any;
 }

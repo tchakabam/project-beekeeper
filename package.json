@@ -27,7 +27,7 @@
     "start": "npm run webpack:devserver",
     "start:node": "ts-node ./bin/node-agent.ts",
     "test": "node_modules/.bin/jest",
-    "lint": "tslint -c ./tslint.json -p ./tsconfig.test.json",
+    "lint": "eslint --ext .ts --ext .js .",
     "webpack:build": "rimraf ./dist && webpack --progress",
     "webpack:watch": "rimraf ./dist && webpack --progress --watch",
     "webpack:devserver": "webpack-dev-server --progress --port 8080"
@@ -55,6 +55,10 @@
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.4",
     "@types/sinon": "^5.0.1",
+    "eslint": "^5.6.0",
+    "eslint-plugin-json": "^1.2.1",
+    "eslint-plugin-markdown": "^1.0.0-beta.6",
+    "eslint-plugin-typescript": "^0.12.0",
     "jest": "^23.6.0",
     "rimraf": "^2.6.1",
     "should": "^13.2.3",
@@ -62,6 +66,7 @@
     "ts-loader": "^4.4.2",
     "ts-node": "^7.0.1",
     "typescript": "^2.9.1",
+    "typescript-eslint-parser": "^18.0.0",
     "webpack": "^4.11.1",
     "webpack-cli": "^3.0.2",
     "webpack-dev-server": "^3.1.4"

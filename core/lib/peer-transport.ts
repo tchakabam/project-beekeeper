@@ -1,18 +1,18 @@
-import { StringlyTypedEventEmitter } from "./stringly-typed-event-emitter";
+import { StringlyTypedEventEmitter } from './stringly-typed-event-emitter';
 
-import {NetworkChannelEmulator} from "./network-channel-emulator";
+import {NetworkChannelEmulator} from './network-channel-emulator';
 
-import * as Debug from "debug";
-import { BKResourceMapData } from "./bk-resource";
+import * as Debug from 'debug';
+import { BKResourceMapData } from './bk-resource';
 
-const debug = Debug("bk:core:peer-transport");
+const debug = Debug('bk:core:peer-transport');
 
 export enum PeerCommandType {
-    SegmentData = "segment_data",
-    SegmentAbsent = "segment_absent",
-    SegmentsMap = "segments_map",
-    SegmentRequest = "segment_request",
-    CancelSegmentRequest = "cancel_segment_request",
+    SegmentData = 'segment_data',
+    SegmentAbsent = 'segment_absent',
+    SegmentsMap = 'segments_map',
+    SegmentRequest = 'segment_request',
+    CancelSegmentRequest = 'cancel_segment_request',
 }
 
 export type PeerTransportCommand = {
@@ -20,7 +20,7 @@ export type PeerTransportCommand = {
     segment_id?: string
     segment_size?: number
     segments?: BKResourceMapData
-}
+};
 
 // TODO: marshall parsed data
 export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTransportCommand | null {
@@ -28,7 +28,7 @@ export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTranspor
     // Serialized JSON string check by first, second and last characters: '{" .... }'
     if (bytes[0] == 123 && bytes[1] == 34 && bytes[data.byteLength - 1] == 125) {
         try {
-            return JSON.parse(new TextDecoder("utf-8").decode(data));
+            return JSON.parse(new TextDecoder('utf-8').decode(data));
         } catch {
         }
     }
@@ -66,10 +66,10 @@ export class DefaultPeerTransportFilter
     constructor(private _transport: IPeerTransport) {
         super();
 
-        this._transport.on("connect", () => this._onConnect());
-        this._transport.on("close", () => this._onClose());
-        this._transport.on("error", (error) => this._onError(error));
-        this._transport.on("data", (data) => this._onData(data));
+        this._transport.on('connect', () => this._onConnect());
+        this._transport.on('close', () => this._onClose());
+        this._transport.on('error', (error) => this._onError(error));
+        this._transport.on('data', (data) => this._onData(data));
 
     }
 
@@ -82,10 +82,10 @@ export class DefaultPeerTransportFilter
     }
 
     write(buffer: string | Buffer): void {
-        if (typeof buffer === "string") {
+        if (typeof buffer === 'string') {
             debug(`writing data to remote peer (id='${this.id}') with string: ${buffer}`);
         } else {
-            debug(`writing data to remote peer (id='${this.id}') with Buffer object, byte-length is ${buffer.byteLength}`)
+            debug(`writing data to remote peer (id='${this.id}') with Buffer object, byte-length is ${buffer.byteLength}`);
         }
         this._netEmOut.push(buffer);
     }
@@ -107,28 +107,28 @@ export class DefaultPeerTransportFilter
     }
 
     private _onConnect() {
-        debug("connect")
-        this.emit("connect");
+        debug('connect');
+        this.emit('connect');
     }
 
     private _onClose() {
-        debug("close")
-        this.emit("close")
+        debug('close');
+        this.emit('close');
     }
 
     private _onError(error: Error) {
-        debug("error")
-        this.emit("error", error);
+        debug('error');
+        this.emit('error', error);
     }
 
     private _onData(data: ArrayBuffer) {
-        debug("input data")
+        debug('input data');
         this._netEmIn.push(data);
     }
 
     private _onNetChannelInData(data: ArrayBuffer) {
-        debug("input netem data")
-        this.emit("data", data);
+        debug('input netem data');
+        this.emit('data', data);
     }
 
     private _onNetChannelOutData(data: Buffer) {

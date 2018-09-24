@@ -1,21 +1,21 @@
 const path = require('path');
 const webpack = require('webpack');
 
-const OUTPUT_PATH = 'build'
+const OUTPUT_PATH = 'build';
 
 function makeConfig({libName, entry, mode}) {
     return {
         mode,
         entry,
         resolve: {
-          // Add `.ts` as a resolvable extension.
-          extensions: [".ts", ".js"]
+            // Add `.ts` as a resolvable extension.
+            extensions: ['.ts', '.js']
         },
         module: {
-          rules: [
+            rules: [
             // all files with a `.ts` extension will be handled by `ts-loader`
-            { test: /\.ts?$/, exclude: [/node_modules/], loader: "ts-loader" },
-          ]
+                { test: /\.ts?$/, exclude: [/node_modules/], loader: 'ts-loader' },
+            ]
         },
         output: {
             filename: libName + '.umd.js',
@@ -29,8 +29,8 @@ function makeConfig({libName, entry, mode}) {
                 __VERSION__: JSON.stringify(require('./package.json').version)
             })
         ]
-    }
-};
+    };
+}
 
 module.exports = [
     makeConfig({libName: 'BeekeeprCore', entry: './core/lib/index', mode: 'development'}),

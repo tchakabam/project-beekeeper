@@ -19,7 +19,7 @@ export default class Utils {
     public static fetchContentAsAny(url: string, responseType: XMLHttpRequestResponseType): Promise<any> {
         return new Promise<string>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open("GET", url, true);
+            xhr.open('GET', url, true);
             xhr.responseType = responseType;
 
             xhr.onreadystatechange = () => {
@@ -36,15 +36,15 @@ export default class Utils {
     }
 
     public static fetchContentAsText(url: string): Promise<string> {
-        return Utils.fetchContentAsAny(url, "text");
+        return Utils.fetchContentAsAny(url, 'text');
     }
 
     public static fetchContentAsArrayBuffer(url: string): Promise<ArrayBuffer> {
-        return Utils.fetchContentAsAny(url, "arraybuffer");
+        return Utils.fetchContentAsAny(url, 'arraybuffer');
     }
 
     public static isAbsoluteUrl(url: string): boolean {
-        return url.startsWith("http://") || url.startsWith("https://");
+        return url.startsWith('http://') || url.startsWith('https://');
     }
 
 }

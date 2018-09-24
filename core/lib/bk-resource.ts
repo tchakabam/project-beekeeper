@@ -1,4 +1,4 @@
-import { Resource } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
+import { Resource } from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
 
 export type BKResourceMapData = Array<[string, BKResourceStatus]>;
 
@@ -11,10 +11,10 @@ export class BKResourceMap extends Map<string, BKResourceStatus> {
 }
 
 export enum BKResourceStatus {
-    Void = "void",
-    Loaded = "loaded",
-    LoadingViaP2p = "loading_via_p2p",
-    LoadingViaHttp = "loading_via_http"
+    Void = 'void',
+    Loaded = 'loaded',
+    LoadingViaP2p = 'loading_via_p2p',
+    LoadingViaHttp = 'loading_via_http'
 }
 
 export class BKResource extends Resource {

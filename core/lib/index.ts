@@ -23,10 +23,10 @@ export {
     BKOptAccessProxySettings,
     BK_IProxy,
     BKAccessProxyEvents as Events
-} from "./bk-access-proxy";
+} from './bk-access-proxy';
 
-export {BKResource} from './bk-resource'
+export {BKResource} from './bk-resource';
 
-export const version =  !global ? __VERSION__ : "";
+export const version =  !global ? __VERSION__ : '';
 
 

@@ -18,27 +18,27 @@
  * limitations under the License.
  */
 
-const PREFIX_ROOT = 'P2PML'
+const PREFIX_ROOT = 'P2PML';
 
 const noop = () => {};
 
 const getPrefix = function(type: string, category: string): string {
-  const prefix = `[${PREFIX_ROOT}]:[${type}]:[${category}] >`
-  return prefix
-}
+    const prefix = `[${PREFIX_ROOT}]:[${type}]:[${category}] >`;
+    return prefix;
+};
 
 export function checkLogLevel(level: number, catLevel: number): boolean {
-  switch(catLevel) {
-  case LoggerLevels.INFO: return !! ((level >= LoggerLevels.INFO) && console.info)
-  case LoggerLevels.LOG: return !! ((level >= LoggerLevels.LOG) && console.log)
-  case LoggerLevels.DEBUG: return !! ((level >= LoggerLevels.DEBUG) && console.debug)
-  case LoggerLevels.WARN: return !! ((level >= LoggerLevels.WARN) && console.warn)
-  case LoggerLevels.ERROR: return !! ((level >= LoggerLevels.ERROR) && console.error)
-  }
-  return false;
+    switch(catLevel) {
+    case LoggerLevels.INFO: return !! ((level >= LoggerLevels.INFO) && console.info);
+    case LoggerLevels.LOG: return !! ((level >= LoggerLevels.LOG) && console.log);
+    case LoggerLevels.DEBUG: return !! ((level >= LoggerLevels.DEBUG) && console.debug);
+    case LoggerLevels.WARN: return !! ((level >= LoggerLevels.WARN) && console.warn);
+    case LoggerLevels.ERROR: return !! ((level >= LoggerLevels.ERROR) && console.error);
+    }
+    return false;
 }
 
-export type LoggerFunc = (...args: any[]) => void
+export type LoggerFunc = (...args: any[]) => void;
 
 export type Logger = {
   info: LoggerFunc,
@@ -46,7 +46,7 @@ export type Logger = {
   debug: LoggerFunc
   warn: LoggerFunc
   error: LoggerFunc
-}
+};
 
 export enum LoggerLevels {
   ON = Infinity,
@@ -59,21 +59,21 @@ export enum LoggerLevels {
 }
 
 export const getLogger = function(category: string, level: number = LoggerLevels.ON): Logger {
-  var window = self; // Needed for WebWorker compat
+    var window = self; // Needed for WebWorker compat
 
-  return {
-    info: checkLogLevel(level, LoggerLevels.INFO) ? console.info.bind(window['console'], getPrefix('i', category)) : noop,
-    log: checkLogLevel(level, LoggerLevels.LOG) ? console.log.bind(window['console'], getPrefix('l', category)) : noop,
-    debug: checkLogLevel(level, LoggerLevels.DEBUG) ? console.debug.bind(window['console'], getPrefix('d', category)) : noop,
-    warn: checkLogLevel(level, LoggerLevels.WARN) ? console.warn.bind(window['console'], getPrefix('w', category)) : noop,
-    error: checkLogLevel(level, LoggerLevels.ERROR) ? console.error.bind(window['console'], getPrefix('e', category)) : noop
-}
-}
+    return {
+        info: checkLogLevel(level, LoggerLevels.INFO) ? console.info.bind(window['console'], getPrefix('i', category)) : noop,
+        log: checkLogLevel(level, LoggerLevels.LOG) ? console.log.bind(window['console'], getPrefix('l', category)) : noop,
+        debug: checkLogLevel(level, LoggerLevels.DEBUG) ? console.debug.bind(window['console'], getPrefix('d', category)) : noop,
+        warn: checkLogLevel(level, LoggerLevels.WARN) ? console.warn.bind(window['console'], getPrefix('w', category)) : noop,
+        error: checkLogLevel(level, LoggerLevels.ERROR) ? console.error.bind(window['console'], getPrefix('e', category)) : noop
+    };
+};
 
 export function makeLogTimestamped(...args: any[]): string {
-  let message = `[${(new Date()).toISOString()}]`
-  args.forEach((arg) => {
-    message += ' ' + arg
-  })
-  return message
+    let message = `[${(new Date()).toISOString()}]`;
+    args.forEach((arg) => {
+        message += ' ' + arg;
+    });
+    return message;
 }

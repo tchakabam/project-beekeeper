@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import * as Debug from "debug";
+import * as Debug from 'debug';
 
-import {StringlyTypedEventEmitter} from "./stringly-typed-event-emitter";
-import { BKResource } from "./bk-resource";
+import {StringlyTypedEventEmitter} from './stringly-typed-event-emitter';
+import { BKResource } from './bk-resource';
 
-import {Queue} from "../../ext-mod/emliri-es-libs/rialto/lib/queue";
-import {Resource, ResourceEvents} from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
+import {Queue} from '../../ext-mod/emliri-es-libs/rialto/lib/queue';
+import {Resource, ResourceEvents} from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
 
-const debug = Debug("bk:core:downloader-http");
+const debug = Debug('bk:core:downloader-http');
 
 export class HttpDownloadQueue
     extends StringlyTypedEventEmitter<"segment-loaded" | "segment-error" | "bytes-downloaded"> {
@@ -36,15 +36,15 @@ export class HttpDownloadQueue
 
     public enqueue(res: BKResource): void {
 
-        debug("enqueue", res)
+        debug('enqueue', res);
 
         if (this._queue.containsAtLeastOnce(res)) {
-            throw new Error("Download already enqueued resource: " + res.getUrl());
+            throw new Error('Download already enqueued resource: ' + res.getUrl());
         }
 
         this._queue.forEach((resource) => {
             if (res.uri === resource.uri) { // FIXME: check byterange
-                throw new Error("Found a resource in download queue with same URI");
+                throw new Error('Found a resource in download queue with same URI');
             }
         });
 
@@ -55,8 +55,8 @@ export class HttpDownloadQueue
         }
 
         res.on(ResourceEvents.FETCH_PROGRESS, () => {
-            this.emit("bytes-downloaded", res);
-        })
+            this.emit('bytes-downloaded', res);
+        });
     }
 
     public abort(resource: BKResource): void {
@@ -88,11 +88,11 @@ export class HttpDownloadQueue
 
         this._fetching = true;
         nextResource.fetch().then((res: Resource) => {
-            this.emit("segment-loaded", res);
+            this.emit('segment-loaded', res);
             this._fetchNext();
         }).catch((err: any) => {
-            this.emit("segment-error", err);
-        })
+            this.emit('segment-error', err);
+        });
     }
 
 }

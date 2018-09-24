@@ -1,8 +1,8 @@
-import { Engine } from "./engine";
-import { BKResourceRequest } from "./bk-resource-request";
-import { ResourceEvents } from "../../../ext-mod/emliri-es-libs/rialto/lib/resource";
-import { BKResource } from "../../../core/lib";
-import { BKAccessProxyEvents } from "../../../core/lib/bk-access-proxy";
+import { Engine } from './engine';
+import { BKResourceRequest } from './bk-resource-request';
+import { ResourceEvents } from '../../../ext-mod/emliri-es-libs/rialto/lib/resource';
+import { BKResource } from '../../../core/lib';
+import { BKAccessProxyEvents } from '../../../core/lib/bk-access-proxy';
 
 const html = require('html-tag');
 const domify = require('domify');
@@ -44,7 +44,7 @@ class ResourceTransferView {
         //console.log('fetch-latency', this._resource.fetchLatency);
 
         return `<span><label>URL:</label> ${this._resource.getUrl()}</span><br>
-            | <span>${ this._isP2p ? "P2P" : "HTTP" }</span>
+            | <span>${ this._isP2p ? 'P2P' : 'HTTP' }</span>
             | <span><label>Transferred (bytes):</label> ${loaded} / ${total}</span>
             | <span><label>Bitrate (kbits/sec): </label> ${txKbps.toFixed(1)}</span>`;
     }
@@ -79,12 +79,12 @@ export class MonitorDomView {
         domRootId: string,
     ) {
         this._engine.getProxy().on(BKAccessProxyEvents.ResourceEnqueuedHttp, (res: BKResource) => {
-            this.addResource(res, false)
-        })
+            this.addResource(res, false);
+        });
 
         this._engine.getProxy().on(BKAccessProxyEvents.ResourceEnqueuedP2p, (res: BKResource) => {
-            this.addResource(res, true)
-        })
+            this.addResource(res, true);
+        });
 
         this._domRootEl = document.getElementById(domRootId);
         if (!this._domRootEl) {
@@ -105,13 +105,13 @@ export class MonitorDomView {
         // use JSX ?
         let html = '<div>';
         this._resourceRequests.forEach((resourceTransfer: ResourceTransferView) => {
-            html += `<div class="resource-dl"><i>Resource download stats</i><p>${resourceTransfer.getHTML()}</p></div>`
-            html += `<hr />`
+            html += `<div class="resource-dl"><i>Resource download stats</i><p>${resourceTransfer.getHTML()}</p></div>`;
+            html += '<hr />';
         });
         html += '</div>';
 
 
         this._domRootEl.innerHTML = '';
-        this._domRootEl.appendChild(domify(html))
+        this._domRootEl.appendChild(domify(html));
     }
 }

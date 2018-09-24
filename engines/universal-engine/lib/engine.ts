@@ -2,15 +2,15 @@ import {
     BK_IProxy,
     BKAccessProxy,
     BKOptAccessProxySettings,
-} from "../../../core/lib";
+} from '../../../core/lib';
 
-import { HlsAccessProxy } from "./hls-access-proxy";
+import { HlsAccessProxy } from './hls-access-proxy';
 
-import * as Debug from "debug";
-import { VirtualPlayhead } from "./virtual-playhead";
-import { MonitorDomView } from "./monitor-dom-view";
+import * as Debug from 'debug';
+import { VirtualPlayhead } from './virtual-playhead';
+import { MonitorDomView } from './monitor-dom-view';
 
-const debug = Debug("bk:engine:universal:engine");
+const debug = Debug('bk:engine:universal:engine');
 
 export class Engine {
 
@@ -27,7 +27,7 @@ export class Engine {
     public constructor(settings: BKOptAccessProxySettings = {}) {
         //super();
 
-        debug("created universal adaptive media p2p engine", settings);
+        debug('created universal adaptive media p2p engine', settings);
 
         /**
          * Access proxy for HTTP resources
@@ -53,7 +53,7 @@ export class Engine {
         /**
          * Monitoring view
          */
-        this._monitorDomView = !global ? new MonitorDomView(this, 'root') : null
+        this._monitorDomView = !global ? new MonitorDomView(this, 'root') : null;
     }
 
     public getProxy(): BK_IProxy{
@@ -78,12 +78,12 @@ export class Engine {
 
     public setSource(url: string) {
         if (this._sourceUrl) {
-            throw new Error("Source URL already set");
+            throw new Error('Source URL already set');
         }
 
         this._sourceUrl = url;
 
-        debug("set source", url)
+        debug('set source', url);
 
         // FIXME: this is a hack, should only be used if running directly on a media-variant playlist (not master)
         this._proxy.setSwarmId(this._hlsProxy.getSwarmIdForVariantPlaylist(url));
@@ -91,9 +91,9 @@ export class Engine {
 
     public start() {
         if (!this._sourceUrl) {
-            throw new Error("No source URL set");
+            throw new Error('No source URL set');
         }
 
         this._hlsProxy.setSource(this._sourceUrl);
     }
- }
+}
