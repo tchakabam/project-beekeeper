@@ -22,7 +22,7 @@ import { BKResource } from './bk-resource';
 import {Queue} from '../../ext-mod/emliri-es-libs/rialto/lib/queue';
 import {Resource, ResourceEvents} from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
 
-const debug = Debug('bk:core:downloader-http');
+const debug = Debug('bk:core:http-download-queue');
 
 export class HttpDownloadQueue
     extends StringlyTypedEventEmitter<"segment-loaded" | "segment-error" | "bytes-downloaded"> {
@@ -36,7 +36,7 @@ export class HttpDownloadQueue
 
     public enqueue(res: BKResource): void {
 
-        debug('enqueue', res);
+        debug('enqueue', res.getUrl());
 
         if (this._queue.containsAtLeastOnce(res)) {
             throw new Error('Download already enqueued resource: ' + res.getUrl());

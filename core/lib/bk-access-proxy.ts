@@ -219,7 +219,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     }
 
     public enqueue(resource: BKResource): void {
-        this.debug('enqueueing:', resource);
+        this.debug('enqueueing:', resource.getUrl());
 
         this.emit(BKAccessProxyEvents.ResourceRequested, resource);
 

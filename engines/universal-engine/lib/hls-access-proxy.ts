@@ -107,7 +107,7 @@ export class HlsAccessProxy {
     }
 
     private _onSegmentBuffered(segment: MediaSegment) {
-        debug('segment buffered:', segment);
+        debug('segment buffered:', segment.getUrl());
     }
 }
 

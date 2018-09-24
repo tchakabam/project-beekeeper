@@ -96,7 +96,7 @@ export class BKResourceRequest implements IResourceRequest {
         this.totalBytes = res.data.byteLength;
         this.responseData = res.data;
 
-        debug(`segment loaded: ${this.url}`, res);
+        debug(`segment loaded: ${this.url}`, res.getUrl());
 
         this._invokeRequestCallback();
     }

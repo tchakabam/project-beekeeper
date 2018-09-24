@@ -66,7 +66,7 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     private _swarmId: string | null = null;
     private _peerId: string;
 
-    private debug = Debug('bk:core:downloader-p2p');
+    private debug = Debug('bk:core:peer-agent');
 
     public constructor(
             readonly cachedSegments: Map<string, BKResource>,
@@ -250,11 +250,11 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     }
 
     private _onTrackerUpdate(data: any) {
-        this.debug('Tracker-client update:', data);
+        this.debug('Tracker-client update data received');
     }
 
     private _onTrackerPeer(trackerPeer: IPeerTransport): void {
-        this.debug('tracker peer', trackerPeer.id, trackerPeer);
+        this.debug('Peer added from tracker:', trackerPeer.id, trackerPeer);
 
         if (this._peers.has(trackerPeer.id)) {
             this.debug('tracker peer already connected', trackerPeer.id, trackerPeer);

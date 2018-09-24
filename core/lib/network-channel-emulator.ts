@@ -112,9 +112,11 @@ export class NetworkChannelEmulator {
 
         const maxBytesInWindow = (this._maxBandwidthBps / 8) * (windowTimeEffectiveMs / 1000);
 
+        /*
         console.log('window ms:', windowTimeEffectiveMs);
         console.log('max bytes in window:', maxBytesInWindow);
         console.log('queue bw:', queueBw);
+        */
 
         let pushedBytes = 0;
         function shouldPushNext() {
@@ -143,6 +145,6 @@ export class NetworkChannelEmulator {
 
         this._outputRate = pushedBytes / (windowTimeEffectiveMs / 1000);
 
-        console.log('output rate:', this._outputRate);
+        //console.log('output rate:', this._outputRate);
     }
 }
