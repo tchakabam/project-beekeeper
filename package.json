@@ -1,10 +1,10 @@
 {
-  "name": "p2p-media-loader",
-  "description": "P2P Media Loader",
-  "version": "0.1.0",
+  "name": "beekeepr",
+  "description": "Beekeepr P2P live stream",
+  "version": "0.0.0",
   "license": "Apache-2.0",
-  "author": "Novage",
-  "homepage": "https://github.com/Novage/p2p-media-loader",
+  "author": "Stephan Hesse <disparat@gmail.com> & Novage LLC",
+  "homepage": "https://github.com/tchakabam/project-beekeeper",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "keywords": [
@@ -26,15 +26,15 @@
     "build": "npm run webpack:build",
     "start": "npm run webpack:devserver",
     "start:node": "ts-node ./bin/node-agent.ts",
-    "test": "node_modules/.bin/jest",
+    "test": "jest",
     "lint": "eslint --ext .ts --ext .js .",
     "webpack:build": "rimraf ./dist && webpack --progress",
-    "webpack:watch": "rimraf ./dist && webpack --progress --watch",
-    "webpack:devserver": "webpack-dev-server --progress --port 8080"
+    "webpack:devserver": "webpack-dev-server --progress --port 8080",
+    "webpack:watch": "rimraf ./dist && webpack --progress --watch"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Novage/p2p-media-loader.git"
+    "url": "https://github.com/tchakabam/project-beekeeper"
   },
   "dependencies": {
     "bittorrent-tracker": "^9.6.0",
