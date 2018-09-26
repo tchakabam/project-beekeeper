@@ -21,7 +21,7 @@ It significantly reduces traditional CDN traffic and cost while delivering media
 
 The whole stack of the P2P network is FOSS.
 
-![P2P Media Loader network](https://raw.githubusercontent.com/Novage/p2p-media-loader/gh-pages/images/p2p-media-loader-network.png)
+![P2P network](https://raw.githubusercontent.com/Novage/p2p-media-loader/gh-pages/images/p2p-media-loader-network.png)
 
 Browser requirements are:<br>
 - **WebRTC Data Channels** support to exchange data between peers
