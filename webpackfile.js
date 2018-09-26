@@ -33,6 +33,6 @@ function makeConfig({libName, entry, mode}) {
 }
 
 module.exports = [
-    makeConfig({libName: 'BeekeeprCore', entry: './core/lib/index', mode: 'development'}),
-    makeConfig({libName: 'BeekeeprUniversalEngine', entry: './engines/universal-engine/lib/index', mode: 'development'}),
+    makeConfig({libName: 'BeekeeprCore', entry: './lib/core/index', mode: 'development'}),
+    makeConfig({libName: 'BeekeeprUniversalEngine', entry: './lib/universal-engine/index', mode: 'development'}),
 ];
