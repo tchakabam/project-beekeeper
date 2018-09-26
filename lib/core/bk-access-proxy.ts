@@ -128,19 +128,19 @@ export enum BKAccessProxyEvents {
      * Emitted when segment has been downloaded.
      * Args: segment
      */
-    SegmentLoaded = 'segment_loaded',
+    ResourceLoaded = 'segment_loaded',
 
     /**
      * Emitted when an error occurred while loading the segment.
      * Args: segment, error
      */
-    SegmentError = 'segment_error',
+    ResourceError = 'segment_error',
 
     /**
      * Emitted for each segment that does not hit into a new segments queue when the load() method is called.
      * Args: segment
      */
-    SegmentAbort = 'segment_abort',
+    ResourceAbort = 'segment_abort',
 
     /**
      * Emitted when a peer is connected.
@@ -202,13 +202,13 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.debug('loader settings', this.settings);
 
         this._httpDownloader = new HttpDownloadQueue();
-        this._httpDownloader.on('segment-loaded', this.onSegmentLoaded);
-        this._httpDownloader.on('segment-error', this.onSegmentError);
+        this._httpDownloader.on('segment-loaded', this.onResourceLoaded);
+        this._httpDownloader.on('segment-error', this.onResourceError);
         this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
 
         this._peerAgent = new PeerAgent(this._storedSegments, this.settings);
-        this._peerAgent.on('segment-loaded', this.onSegmentLoaded);
-        this._peerAgent.on('segment-error', this.onSegmentError);
+        this._peerAgent.on('segment-loaded', this.onResourceLoaded);
+        this._peerAgent.on('segment-error', this.onResourceError);
 
         this._peerAgent.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('p2p', bytes));
         this._peerAgent.on('bytes-uploaded', (bytes: number) => this.onChunkBytesUploaded('p2p', bytes));
@@ -285,20 +285,20 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.emit(BKAccessProxyEvents.ChunkBytesUploaded, method, bytes);
     }
 
-    private onSegmentLoaded = (segment: BKResource, data: ArrayBuffer) => {
+    private onResourceLoaded = (segment: BKResource, data: ArrayBuffer) => {
         this.debug('segment loaded', segment.id, segment.uri);
 
         this._storedSegments.set(segment.id, segment);
 
         segment.lastAccessedAt = getPerfNow();
 
-        this.emit(BKAccessProxyEvents.SegmentLoaded, segment);
+        this.emit(BKAccessProxyEvents.ResourceLoaded, segment);
 
         this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
     }
 
-    private onSegmentError = (segment: BKResource, event: any) => {
-        this.emit(BKAccessProxyEvents.SegmentError, segment, event);
+    private onResourceError = (segment: BKResource, event: any) => {
+        this.emit(BKAccessProxyEvents.ResourceError, segment, event);
     }
 
     private onPeerConnect = (peer: {id: string}) => {

@@ -22,7 +22,7 @@ export class Engine {
     private _sourceUrl: string | null = null;
     private _hlsProxy: HlsAccessProxy;
     private _playhead: VirtualPlayhead;
-    private _monitorDomView: MonitorDomView;
+    private _monitorDomView: MonitorDomView = null;
 
     public constructor(settings: BKOptAccessProxySettings = {}) {
         //super();

@@ -3,7 +3,7 @@ import * as Debug from 'debug';
 import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from '../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
 import { XHRState, XHRData, XHR } from '../../ext-mod/emliri-es-libs/rialto/lib/xhr';
 import { getPerfNow } from '../core/perf-now';
-import { BKResource, BK_IProxy, Events } from '../core';
+import { BKResource, BK_IProxy, BKProxyEvents } from '../core';
 
 const debug = Debug('bk:engine:universal:resource-request');
 
@@ -29,16 +29,16 @@ export class BKResourceRequest implements IResourceRequest {
     private _requestCreated: number = null;
 
     constructor(
-        private downloader: BK_IProxy,
+        private proxy: BK_IProxy,
         private swarmId: string,
         private url: string,
         private options: ResourceRequestOptions = {}
     ) {
         debug(`new p2p media downloader request for ${url}`);
 
-        this.downloader.on(Events.SegmentLoaded, this.onSegmentLoaded.bind(this));
-        this.downloader.on(Events.SegmentError, this.onSegmentError.bind(this));
-        this.downloader.on(Events.SegmentAbort, this.onSegmentAbort.bind(this));
+        this.proxy.on(BKProxyEvents.ResourceLoaded, this.onResourceLoaded.bind(this));
+        this.proxy.on(BKProxyEvents.ResourceError, this.onResourceError.bind(this));
+        this.proxy.on(BKProxyEvents.ResourceAbort, this.onResourceAbort.bind(this));
 
         debug(`creating new p2p resource: ${url} with swarm-ID "${swarmId}"`);
 
@@ -49,7 +49,7 @@ export class BKResourceRequest implements IResourceRequest {
 
         res.swarmId = this.swarmId;
 
-        this.downloader.enqueue(res);
+        this.proxy.enqueue(res);
 
         this._resourceRequestCallback = this.options.requestCallback;
         this._requestCreated = getPerfNow();
@@ -74,7 +74,7 @@ export class BKResourceRequest implements IResourceRequest {
         }
     }
 
-    private onSegmentLoaded(res: BKResource) {
+    private onResourceLoaded(res: BKResource) {
         if (res.id !== this._resource.id) {
             return;
         }
@@ -101,7 +101,7 @@ export class BKResourceRequest implements IResourceRequest {
         this._invokeRequestCallback();
     }
 
-    private onSegmentError(segment: BKResource, err: Error) {
+    private onResourceError(segment: BKResource, err: Error) {
         if (segment.id !== this._resource.id) {
             return;
         }
@@ -113,7 +113,7 @@ export class BKResourceRequest implements IResourceRequest {
         debug(`segment error: ${this.url}`);
     }
 
-    private onSegmentAbort(segment: BKResource) {
+    private onResourceAbort(segment: BKResource) {
         if (segment.id !== this._resource.id) {
             return;
         }

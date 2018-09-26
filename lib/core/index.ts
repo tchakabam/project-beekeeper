@@ -22,7 +22,7 @@ export {
     BKAccessProxySettings,
     BKOptAccessProxySettings,
     BK_IProxy,
-    BKAccessProxyEvents as Events
+    BKAccessProxyEvents as BKProxyEvents
 } from './bk-access-proxy';
 
 export {BKResource} from './bk-resource';
