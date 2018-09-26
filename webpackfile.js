@@ -35,4 +35,5 @@ function makeConfig({libName, entry, mode}) {
 module.exports = [
     makeConfig({libName: 'BeekeeprCore', entry: './lib/core/index', mode: 'development'}),
     makeConfig({libName: 'BeekeeprUniversalEngine', entry: './lib/universal-engine/index', mode: 'development'}),
+    makeConfig({libName: 'BeekeeprHlsjsLoader', entry: './lib/hlsjs-loader/index', mode: 'development'})
 ];
