@@ -19,8 +19,7 @@
   },
   "compileOnSave": true,
   "include": [
-    "core/**/*",
-    "plugins/**/*"
+    "lib/**/*"
   ],
   "exclude": [
     //"node_modules",
