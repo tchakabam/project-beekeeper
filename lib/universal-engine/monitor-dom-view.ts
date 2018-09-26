@@ -1,8 +1,8 @@
 import { Engine } from './engine';
 import { BKResourceRequest } from './bk-resource-request';
-import { ResourceEvents } from '../../../ext-mod/emliri-es-libs/rialto/lib/resource';
-import { BKResource } from '../../../core/lib';
-import { BKAccessProxyEvents } from '../../../core/lib/bk-access-proxy';
+import { ResourceEvents } from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
+import { BKResource } from '../core';
+import { BKAccessProxyEvents } from '../core/bk-access-proxy';
 
 const html = require('html-tag');
 const domify = require('domify');

@@ -1,14 +1,14 @@
 import * as Debug from 'debug';
 import { createHash } from 'crypto';
 
-import { BK_IProxy } from '../../../core/lib';
+import { BK_IProxy } from '../core';
 
-import { Scheduler } from '../../../ext-mod/emliri-es-libs/objec-ts/lib/scheduler';
-import { HlsM3u8File } from '../../../ext-mod/emliri-es-libs/rialto/lib/hls-m3u8';
-import { ResourceRequestMaker, IResourceRequest, ResourceRequestOptions } from '../../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
-import { AdaptiveMediaStreamConsumer } from '../../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media-client';
-import { AdaptiveMedia, AdaptiveMediaPeriod } from '../../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media';
-import { MediaSegment } from '../../../ext-mod/emliri-es-libs/rialto';
+import { Scheduler } from '../../ext-mod/emliri-es-libs/objec-ts/lib/scheduler';
+import { HlsM3u8File } from '../../ext-mod/emliri-es-libs/rialto/lib/hls-m3u8';
+import { ResourceRequestMaker, IResourceRequest, ResourceRequestOptions } from '../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
+import { AdaptiveMediaStreamConsumer } from '../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media-client';
+import { AdaptiveMedia, AdaptiveMediaPeriod } from '../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media';
+import { MediaSegment } from '../../ext-mod/emliri-es-libs/rialto';
 
 import { BKResourceRequest } from './bk-resource-request'; // TODO: move to core
 

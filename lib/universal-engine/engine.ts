@@ -2,7 +2,7 @@ import {
     BK_IProxy,
     BKAccessProxy,
     BKOptAccessProxySettings,
-} from '../../../core/lib';
+} from '../core';
 
 import { HlsAccessProxy } from './hls-access-proxy';
 

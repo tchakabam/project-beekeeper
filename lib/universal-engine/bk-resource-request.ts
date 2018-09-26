@@ -1,9 +1,9 @@
 import * as Debug from 'debug';
 
-import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from '../../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
-import { XHRState, XHRData, XHR } from '../../../ext-mod/emliri-es-libs/rialto/lib/xhr';
-import { BKResource, BK_IProxy, Events } from '../../../core/lib';
-import { getPerfNow } from '../../../core/lib/perf-now';
+import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from '../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
+import { XHRState, XHRData, XHR } from '../../ext-mod/emliri-es-libs/rialto/lib/xhr';
+import { getPerfNow } from '../core/perf-now';
+import { BKResource, BK_IProxy, Events } from '../core';
 
 const debug = Debug('bk:engine:universal:resource-request');
 

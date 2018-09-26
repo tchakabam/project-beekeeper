@@ -1,4 +1,4 @@
-import { StringlyTypedEventEmitter } from '../../../core/lib/stringly-typed-event-emitter';
+import { StringlyTypedEventEmitter } from '../core/stringly-typed-event-emitter';
 
 const perf = window.performance;
 
