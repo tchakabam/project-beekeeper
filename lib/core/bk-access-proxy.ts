@@ -169,6 +169,8 @@ export enum BKAccessProxyEvents {
 
 export interface BK_IProxy {
     on(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
+    once(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
+    off(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
     enqueue(resource: BKResource): void;
     abort(resource: BKResource): void;
     terminate(): void;
@@ -201,10 +203,12 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.settings = Object.assign(defaultSettings, settings);
         this.debug('loader settings', this.settings);
 
-        this._httpDownloader = new HttpDownloadQueue();
-        this._httpDownloader.on('segment-loaded', this.onResourceLoaded);
-        this._httpDownloader.on('segment-error', this.onResourceError);
-        this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
+        this._httpDownloader = new HttpDownloadQueue(
+            this.onResourceLoaded.bind(this),
+            this.onResourceError
+        );
+
+        //this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
 
         this._peerAgent = new PeerAgent(this._storedSegments, this.settings);
         this._peerAgent.on('segment-loaded', this.onResourceLoaded);
@@ -294,7 +298,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         this.emit(BKAccessProxyEvents.ResourceLoaded, segment);
 
-        this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
+        //this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
     }
 
     private onResourceError = (segment: BKResource, event: any) => {

@@ -1,5 +1,5 @@
 import { Engine } from './engine';
-import { BKResourceRequest } from './bk-resource-request';
+import { BKResourceRequest } from '../core/bk-resource-request';
 import { ResourceEvents } from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
 import { BKResource } from '../core';
 import { BKAccessProxyEvents } from '../core/bk-access-proxy';

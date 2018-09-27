@@ -1,7 +1,7 @@
 import * as Debug from 'debug';
 
 import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from '../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
-import { XHRState, XHRData, XHR } from '../../ext-mod/emliri-es-libs/rialto/lib/xhr';
+import { XHRState, XHRData, XHR, XHRResponseType } from '../../ext-mod/emliri-es-libs/rialto/lib/xhr';
 import { getPerfNow } from '../core/perf-now';
 import { BKResource, BK_IProxy, BKProxyEvents } from '../core';
 
@@ -10,12 +10,17 @@ const debug = Debug('bk:engine:universal:resource-request');
 export class BKResourceRequest implements IResourceRequest {
 
     xhrState: XHRState = XHRState.UNSENT;
+
     responseData: XHRData = null;
     responseHeaders: object = {};
+    responseType: XHRResponseType;
+
     loadedBytes: number = 0;
     totalBytes: number = NaN;
+
     hasBeenAborted: boolean = false;
     hasErrored: boolean = false;
+
     error: Error = null;
 
     secondsUntilLoading: number = NaN;
@@ -53,6 +58,8 @@ export class BKResourceRequest implements IResourceRequest {
 
         this._resourceRequestCallback = this.options.requestCallback;
         this._requestCreated = getPerfNow();
+
+        this.responseType = XHRResponseType.ARRAY_BUFFER;
     }
 
     abort() {

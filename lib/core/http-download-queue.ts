@@ -24,14 +24,15 @@ import {Resource, ResourceEvents} from '../../ext-mod/emliri-es-libs/rialto/lib/
 
 const debug = Debug('bk:core:http-download-queue');
 
-export class HttpDownloadQueue
-    extends StringlyTypedEventEmitter<"segment-loaded" | "segment-error" | "bytes-downloaded"> {
+export class HttpDownloadQueue {
 
     private _queue: Queue<BKResource> = new Queue();
     private _fetching: boolean = false;
 
-    public constructor() {
-        super();
+    public constructor(
+        private _onLoaded: (res: Resource) => void,
+        private _onError: (res: Resource, err: Resource) => void) {
+
     }
 
     public enqueue(res: BKResource): void {
@@ -55,7 +56,7 @@ export class HttpDownloadQueue
         }
 
         res.on(ResourceEvents.FETCH_PROGRESS, () => {
-            this.emit('bytes-downloaded', res);
+            // TODO
         });
     }
 
@@ -88,10 +89,12 @@ export class HttpDownloadQueue
 
         this._fetching = true;
         nextResource.fetch().then((res: Resource) => {
-            this.emit('segment-loaded', res);
+            console.log('segment-loaded')
+            //debug('segment-loaded');
+            this._onLoaded(res);
             this._fetchNext();
         }).catch((err: any) => {
-            this.emit('segment-error', err);
+            this._onError(nextResource, err);
         });
     }
 

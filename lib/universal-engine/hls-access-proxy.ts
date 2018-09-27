@@ -10,7 +10,7 @@ import { AdaptiveMediaStreamConsumer } from '../../ext-mod/emliri-es-libs/rialto
 import { AdaptiveMedia, AdaptiveMediaPeriod } from '../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media';
 import { MediaSegment } from '../../ext-mod/emliri-es-libs/rialto';
 
-import { BKResourceRequest } from './bk-resource-request'; // TODO: move to core
+import { BKResourceRequest } from '../core/bk-resource-request'; // TODO: move to core
 
 const SWARM_URN_PREFIX = 'urn:livepeer:beekeeper:bittorrent:swarm-id';
 
