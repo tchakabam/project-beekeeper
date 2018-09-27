@@ -69,7 +69,7 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     private debug = Debug('bk:core:peer-agent');
 
     public constructor(
-            readonly cachedSegments: Map<string, BKResource>,
+            private readonly cachedSegments: Map<string, BKResource>,
             readonly settings: {
             useP2P: boolean,
             trackerAnnounce: string[],
@@ -360,7 +360,13 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     private _onSegmentRequest = (peer: Peer, segmentId: string) => {
         const segment = this.cachedSegments.get(segmentId);
         if (segment) {
-            peer.sendSegmentData(segmentId, segment.data!);
+
+            if (!segment.data || segment.data.byteLength === 0) {
+                console.error('No data in segment: ' + segment.id)
+                debugger;
+            }
+
+            peer.sendSegmentData(segmentId, segment.data);
         } else {
             peer.sendSegmentAbsent(segmentId);
         }

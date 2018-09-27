@@ -289,8 +289,12 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.emit(BKAccessProxyEvents.ChunkBytesUploaded, method, bytes);
     }
 
-    private onResourceLoaded = (segment: BKResource, data: ArrayBuffer) => {
-        this.debug('segment loaded', segment.id, segment.uri);
+    private onResourceLoaded = (segment: BKResource) => {
+        this.debug('resource loaded', segment.id, segment.data);
+
+        if (!segment.data || segment.data.byteLength === 0) {
+            throw new Error('No data in resource loaded')
+        }
 
         this._storedSegments.set(segment.id, segment);
 
@@ -298,7 +302,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         this.emit(BKAccessProxyEvents.ResourceLoaded, segment);
 
-        //this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
+        this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
     }
 
     private onResourceError = (segment: BKResource, event: any) => {
