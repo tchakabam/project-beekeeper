@@ -55,7 +55,8 @@ export interface ITrackerClient  {
 
 export class PeerAgent extends StringlyTypedEventEmitter<
     "peer-connected" | "peer-closed" | "peer-data-updated" |
-    "segment-loaded" | "segment-error" |
+    "peer-request-received" | "peer-response-sent" |
+    "resource-fetched" | "resource-error" |
     "bytes-downloaded" | "bytes-uploaded"
     > {
 
@@ -263,13 +264,13 @@ export class PeerAgent extends StringlyTypedEventEmitter<
         peer.on('connect', this._onPeerConnect);
         peer.on('close', this._onPeerClose);
         peer.on('data-updated', this._onPeerDataUpdated);
-        peer.on('segment-request', this._onSegmentRequest);
-        peer.on('segment-loaded', this._onSegmentLoaded);
-        peer.on('segment-absent', this._onSegmentAbsent);
-        peer.on('segment-error', this._onSegmentError);
-        peer.on('segment-timeout', this._onSegmentTimeout);
-        peer.on('bytes-downloaded', this._onChunkBytesDownloaded);
-        peer.on('bytes-uploaded', this._onChunkBytesUploaded);
+        peer.on('resource-request', this._onResourceRequest);
+        peer.on('resource-fetched', this._onResourceFetched);
+        peer.on('resource-absent', this._onResourceAbsent);
+        peer.on('resource-error', this._onResourceError);
+        peer.on('resource-timeout', this._onResourceTimeout);
+        peer.on('bytes-downloaded', this._onBytesDownloaded);
+        peer.on('bytes-uploaded', this._onBytesUploaded);
 
         let peerCandidatesById = this._peerCandidates.get(peer.id);
         if (!peerCandidatesById) {
@@ -280,11 +281,11 @@ export class PeerAgent extends StringlyTypedEventEmitter<
         peerCandidatesById.push(peer);
     }
 
-    private _onChunkBytesDownloaded = (bytes: number) => {
+    private _onBytesDownloaded = (bytes: number) => {
         this.emit('bytes-downloaded', bytes);
     }
 
-    private _onChunkBytesUploaded = (bytes: number) => {
+    private _onBytesUploaded = (bytes: number) => {
         this.emit('bytes-uploaded', bytes);
     }
 
@@ -351,22 +352,27 @@ export class PeerAgent extends StringlyTypedEventEmitter<
         this.emit('peer-data-updated');
     }
 
-    private _onSegmentRequest = (peer: Peer, segmentId: string) => {
-        const segment = this.cachedSegments.get(segmentId);
-        if (segment) {
+    private _onResourceRequest = (peer: Peer, resourceId: string) => {
+        const resource: BKResource = this.cachedSegments.get(resourceId);
 
-            if (!segment.data || segment.data.byteLength === 0) {
-                console.error('No data in segment: ' + segment.id)
-                debugger;
+        this.emit('peer-request-received', resource, peer);
+
+        if (resource) {
+            // assert: that the resource objects are consistent
+            if (!resource.data || resource.data.byteLength === 0) {
+                throw new Error('No data in segment: ' + resource.id)
             }
+            peer.sendSegmentData(resourceId, resource.data);
 
-            peer.sendSegmentData(segmentId, segment.data);
         } else {
-            peer.sendSegmentAbsent(segmentId);
+            this.debug('request received for absent resource with id:', resourceId);
+            peer.sendSegmentAbsent(resourceId);
         }
+
+        this.emit('peer-response-sent', resource, peer);
     }
 
-    private _onSegmentLoaded = (peer: Peer, segmentId: string, data: ArrayBuffer) => {
+    private _onResourceFetched = (peer: Peer, segmentId: string, data: ArrayBuffer) => {
 
         this.debug(`resource "${segmentId}" loaded from peer (id=${peer.id})`);
 
@@ -381,24 +387,24 @@ export class PeerAgent extends StringlyTypedEventEmitter<
             res.setExternalyFetchedBytes(data.byteLength, data.byteLength, responseLatencySeconds);
             res.setBuffer(data);
 
-            this.emit('segment-loaded', peerResourceRequest.resource, data);
+            this.emit('resource-fetched', peerResourceRequest.resource, data);
         }
     }
 
-    private _onSegmentAbsent = (peer: Peer, segmentId: string) => {
+    private _onResourceAbsent = (peer: Peer, segmentId: string) => {
         this._peerResourceTransfers.delete(segmentId);
         this.emit('peer-data-updated');
     }
 
-    private _onSegmentError = (peer: Peer, segmentId: string, description: string) => {
+    private _onResourceError = (peer: Peer, segmentId: string, description: string) => {
         const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
         if (peerResourceRequest) {
             this._peerResourceTransfers.delete(segmentId);
-            this.emit('segment-error', peerResourceRequest.resource, description);
+            this.emit('resource-error', peerResourceRequest.resource, description);
         }
     }
 
-    private _onSegmentTimeout = (peer: Peer, segmentId: string) => {
+    private _onResourceTimeout = (peer: Peer, segmentId: string) => {
         const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
         if (peerResourceRequest) {
             this._peerResourceTransfers.delete(segmentId);

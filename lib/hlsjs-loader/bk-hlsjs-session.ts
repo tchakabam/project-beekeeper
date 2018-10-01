@@ -4,10 +4,12 @@ import { BKHlsjsLoader } from "./bk-hlsjs-loader";
 import { ByteRange } from "../../ext-mod/emliri-es-libs/rialto/lib/byte-range";
 import { utf8BytesToString } from "../../ext-mod/emliri-es-libs/rialto/lib/bytes-read-write";
 import { getSwarmIdForVariantPlaylist } from "../core/bk-swarm-id";
+import { BKResourceTransferMonitorDomView } from "../core/bk-resource-tx-monitor";
 
 export class BKHlsjsSession {
 
-    private _proxy: BKAccessProxy;
+    private _proxy: BKAccessProxy = null;
+    private _monitorView: BKResourceTransferMonitorDomView = null;
 
     private _resourcesQueued: BKResource[] = [];
 
@@ -16,12 +18,13 @@ export class BKHlsjsSession {
 
     constructor(url) {
         this._proxy = new BKAccessProxy();
+        this._monitorView = new BKResourceTransferMonitorDomView(this._proxy, "root");
 
         this._proxy.setSwarmId(getSwarmIdForVariantPlaylist(url));
 
         const trequest = 1000;
 
-        this._proxy.on(BKProxyEvents.ResourceLoaded, (res: BKResource) => {
+        this._proxy.on(BKProxyEvents.ResourceFetched, (res: BKResource) => {
 
             const callbacks = this._mapUrlToCallbacks[res.uri];
             const context = this._mapUrlToContext[res.uri];

@@ -1,0 +1,36 @@
+h2 {
+    text-align: center;
+}
+
+h3 {
+    text-align: center;
+}
+
+#controls {
+    text-align: center;
+    margin-top: 2em;
+}
+
+#root {
+    margin: auto;
+    width: 80%;
+}
+
+#vid-container {
+    text-align: center;
+    margin-top: 2em;
+}
+
+.resource-tx {
+    padding: 1em;
+    text-align: center;
+    border: 1px solid blue;
+}
+
+.resource-dl {
+    border: 1px solid green;
+}
+
+.resource-ul {
+    border: 1px solid red;
+}

@@ -39,9 +39,7 @@ export type PeerInfo = {
 export class Peer extends StringlyTypedEventEmitter<
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |
-    "segment-request" | "segment-absent" |
-    "segment-loaded" | "segment-error" |
-    "segment-timeout" |
+    "resource-request" | "resource-absent" | "resource-fetched" | "resource-error" | "resource-timeout" |
     "bytes-downloaded" | "bytes-uploaded"
     > {
 
@@ -114,7 +112,9 @@ export class Peer extends StringlyTypedEventEmitter<
 
         let bytesLeft = data.byteLength;
         while (bytesLeft > 0) {
-            const bytesToSend = (bytesLeft >= this.settings.webRtcMaxMessageSize ? this.settings.webRtcMaxMessageSize : bytesLeft);
+            const bytesToSend
+                = (bytesLeft >= this.settings.webRtcMaxMessageSize
+                    ? this.settings.webRtcMaxMessageSize : bytesLeft);
 
             const buffer: Buffer = this._isSafari11_0 ?
                 Buffer.from(data.slice(data.byteLength - bytesLeft, data.byteLength - bytesLeft + bytesToSend)) : // workaround for Safari 11.0 bug: https://bugs.webkit.org/show_bug.cgi?id=173052
@@ -162,7 +162,7 @@ export class Peer extends StringlyTypedEventEmitter<
             }
             const segmentId = this._downloadingSegmentId;
             this.sendCancelSegmentRequest();
-            this.emit('segment-timeout', this, segmentId); // TODO: send peer not responding event
+            this.emit('resource-timeout', this, segmentId); // TODO: send peer not responding event
         }, this.settings.p2pSegmentDownloadTimeout);
     }
 
@@ -205,14 +205,14 @@ export class Peer extends StringlyTypedEventEmitter<
 
             this.debug('peer resource transfer done', this._id, segmentId, this);
             this._terminateSegmentRequest();
-            this.emit('segment-loaded', this, segmentId, segmentData.buffer);
+            this.emit('resource-fetched', this, segmentId, segmentData.buffer);
         } else if (this._downloadingSegment.bytesDownloaded > this._downloadingSegment.size) {
             this.debug(`remote peer (id='${this._id}'): transferred resource bytes mismatch!!!`, segmentId);
 
             console.error('There was a fatal peer transaction error :(');
 
             this._terminateSegmentRequest();
-            this.emit('segment-error', this, segmentId, 'Too many bytes received for segment');
+            this.emit('resource-error', this, segmentId, 'Too many bytes received for segment');
         }
     }
 
@@ -228,7 +228,7 @@ export class Peer extends StringlyTypedEventEmitter<
 
             const segmentId = this._downloadingSegment.id;
             this._terminateSegmentRequest();
-            this.emit('segment-error', this, segmentId, 'Segment download is interrupted by a command');
+            this.emit('resource-error', this, segmentId, 'Segment download is interrupted by a command');
             return;
         }
 
@@ -244,7 +244,7 @@ export class Peer extends StringlyTypedEventEmitter<
             break;
 
         case PeerCommandType.SegmentRequest:
-            this.emit('segment-request', this, command.segment_id);
+            this.emit('resource-request', this, command.segment_id);
             break;
 
         case PeerCommandType.SegmentData:
@@ -261,7 +261,7 @@ export class Peer extends StringlyTypedEventEmitter<
             if (this._downloadingSegmentId === command.segment_id) {
                 this._terminateSegmentRequest();
                 this._segmentsMap.delete(command.segment_id);
-                this.emit('segment-absent', this, command.segment_id);
+                this.emit('resource-absent', this, command.segment_id);
             }
             break;
 

@@ -41,7 +41,7 @@ export class BKResourceRequest implements IResourceRequest {
     ) {
         debug(`new p2p media downloader request for ${url}`);
 
-        this.proxy.on(BKProxyEvents.ResourceLoaded, this.onResourceLoaded.bind(this));
+        this.proxy.on(BKProxyEvents.ResourceFetched, this.onResourceLoaded.bind(this));
         this.proxy.on(BKProxyEvents.ResourceError, this.onResourceError.bind(this));
         this.proxy.on(BKProxyEvents.ResourceAbort, this.onResourceAbort.bind(this));
 

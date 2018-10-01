@@ -70,7 +70,7 @@ export type BKOptAccessProxySettings = Partial<BKAccessProxySettings>;
 
 export const defaultSettings: BKAccessProxySettings = {
 
-    webRtcMaxMessageSize: 64 * 1024 - 1,
+    webRtcMaxMessageSize: 64 * 1024 - 1, // 64Kbytes (why the -1 ?)
 
     p2pSegmentDownloadTimeout: 60000,
 
@@ -94,43 +94,35 @@ export enum BKAccessProxyEvents {
      * Emitted when segment has been downloaded.
      * Args: segment
      */
-    ResourceLoaded = 'segment_loaded',
+    ResourceFetched = 'resource:fetched',
 
     /**
      * Emitted when an error occurred while loading the segment.
      * Args: segment, error
      */
-    ResourceError = 'segment_error',
+    ResourceError = 'resource:error',
 
     /**
      * Emitted for each segment that does not hit into a new segments queue when the load() method is called.
      * Args: segment
      */
-    ResourceAbort = 'segment_abort',
+    ResourceAbort = 'resource:abort',
 
     /**
      * Emitted when a peer is connected.
      * Args: peer
      */
-    PeerConnect = 'peer_connect',
+    PeerConnect = 'peer:connect',
 
     /**
      * Emitted when a peer is disconnected.
      * Args: peerId
      */
-    PeerClose = 'peer_close',
+    PeerClose = 'peer:close',
 
-    /**
-     * Emitted when a segment chunk has been downloaded.
-     * Args: method (can be "http" or "p2p" only), bytes
-     */
-    ChunkBytesDownloaded = 'chunk_bytes_downloaded',
+    PeerRequestReceived = 'peer:request',
 
-    /**
-     * Emitted when a segment chunk has been uploaded.
-     * Args: method (can be "p2p" only), bytes
-     */
-    ChunkBytesUploaded = 'chunk_bytes_uploaded'
+    PeerResponseSent = 'peer:response-sent',
 }
 
 export interface BK_IProxy {
@@ -177,15 +169,17 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         //this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
 
         this._peerAgent = new PeerAgent(this._storedSegments, this.settings);
-        this._peerAgent.on('segment-loaded', this.onResourceLoaded);
-        this._peerAgent.on('segment-error', this.onResourceError);
 
+        this._peerAgent.on('resource-fetched', this.onResourceLoaded.bind(this));
+        this._peerAgent.on('resource-error', this.onResourceError.bind(this));
         this._peerAgent.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('p2p', bytes));
         this._peerAgent.on('bytes-uploaded', (bytes: number) => this.onChunkBytesUploaded('p2p', bytes));
 
-        this._peerAgent.on('peer-connected', this.onPeerConnect);
-        this._peerAgent.on('peer-closed', this.onPeerClose);
-        this._peerAgent.on('peer-data-updated', this.onPeerDataUpdated);
+        this._peerAgent.on('peer-connected', this.onPeerConnect.bind(this));
+        this._peerAgent.on('peer-closed', this.onPeerClose.bind(this));
+        this._peerAgent.on('peer-data-updated', this.onPeerDataUpdated.bind(this));
+        this._peerAgent.on('peer-request-received', this.onPeerRequestReceived.bind(this));
+        this._peerAgent.on('peer-response-sent', this.onPeerResponseSent.bind(this));
     }
 
     public enqueue(resource: BKResource): void {
@@ -245,17 +239,15 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
     // Event handlers
 
-    private onChunkBytesDownloaded = (method: "http" | "p2p", bytes: number) => {
+    private onChunkBytesDownloaded (method: "http" | "p2p", bytes: number) {
         this._bandwidthEstimator.addBytes(bytes, getPerfNow());
-        this.emit(BKAccessProxyEvents.ChunkBytesDownloaded, method, bytes);
     }
 
-    private onChunkBytesUploaded = (method: "p2p", bytes: number) => {
+    private onChunkBytesUploaded (method: "p2p", bytes: number) {
         this._bandwidthEstimator.addBytes(bytes, getPerfNow());
-        this.emit(BKAccessProxyEvents.ChunkBytesUploaded, method, bytes);
     }
 
-    private onResourceLoaded = (segment: BKResource) => {
+    private onResourceLoaded (segment: BKResource) {
         this.debug('resource loaded', segment.id, segment.data);
 
         if (!segment.data || segment.data.byteLength === 0) {
@@ -266,25 +258,43 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         segment.lastAccessedAt = getPerfNow();
 
-        this.emit(BKAccessProxyEvents.ResourceLoaded, segment);
+        this.emit(BKAccessProxyEvents.ResourceFetched, segment);
 
         this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
     }
 
-    private onResourceError = (segment: BKResource, event: any) => {
+    private onResourceError (segment: BKResource, event: any) {
         this.emit(BKAccessProxyEvents.ResourceError, segment, event);
     }
 
-    private onPeerConnect = (peer: {id: string}) => {
+    private onPeerConnect (peer: {id: string}) {
         this._peerAgent.sendSegmentsMap(peer.id, this._createSegmentsMap());
         this.emit(BKAccessProxyEvents.PeerConnect, peer);
     }
 
-    private onPeerClose = (peerId: string) => {
+    private onPeerClose (peerId: string) {
         this.emit(BKAccessProxyEvents.PeerClose, peerId);
     }
 
-    private onPeerDataUpdated = () => {
+    private onPeerDataUpdated () {
         this.debug('peer data updated');
+    }
+
+    private onPeerRequestReceived(resource: BKResource, peer: Peer) {
+        if (resource) {
+            this.debug('peer request received resource', resource.id);
+        } else {
+            this.debug('peer request received for absent resource');
+        }
+        this.emit(BKAccessProxyEvents.PeerRequestReceived, resource, peer);
+    }
+
+    private onPeerResponseSent(resource: BKResource, peer: Peer) {
+        if (resource) {
+            this.debug('peer response sent for resource id:', resource.id);
+        } else {
+            this.debug('peer response sent with absent resource');
+        }
+        this.emit(BKAccessProxyEvents.PeerResponseSent, resource, peer);
     }
 }
