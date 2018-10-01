@@ -38,31 +38,6 @@ const trackerDefaultAnounce = [
 
 export type BKAccessProxySettings = {
     /**
-     * Segment lifetime in cache. The segment is deleted from the cache if the last access time is greater than this value (in milliseconds).
-     */
-    cachedSegmentExpiration: number;
-
-    /**
-     * Max number of segments that can be stored in the cache.
-     */
-    cachedSegmentsCount: number;
-
-    /**
-     * Enable/Disable peers interaction.
-     */
-    useP2P: boolean;
-
-    /**
-     * Max number of simultaneous downloads from peers.
-     */
-    simultaneousP2PDownloads: number;
-
-    /**
-     * Max number of the segments to be downloaded via HTTP or P2P methods.
-     */
-    bufferedSegmentsCount: number;
-
-    /**
      * Max WebRTC message size. 64KiB - 1B should work with most of recent browsers. Set it to 16KiB for older browsers support.
      */
     webRtcMaxMessageSize: number;
@@ -94,15 +69,6 @@ export type BKAccessProxySettings = {
 export type BKOptAccessProxySettings = Partial<BKAccessProxySettings>;
 
 export const defaultSettings: BKAccessProxySettings = {
-    cachedSegmentExpiration: 5 * 60 * 1000,
-
-    cachedSegmentsCount: 30,
-
-    useP2P: true,
-
-    simultaneousP2PDownloads: 3,
-
-    bufferedSegmentsCount: 20,
 
     webRtcMaxMessageSize: 64 * 1024 - 1,
 

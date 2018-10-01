@@ -1,15 +1,6 @@
-#controls {
+#vid-container {
     text-align: center;
     margin-top: 2em;
-}
-
-#root {
-    margin: auto;
-    width: 80%;
-}
-
-#root span {
-
 }
 
 h2 {
@@ -18,9 +9,4 @@ h2 {
 
 h3 {
     text-align: center;
-}
-
-.resource-dl {
-    text-align: center;
-    border: 1px solid blue;
 }

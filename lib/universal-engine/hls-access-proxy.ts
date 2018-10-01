@@ -11,8 +11,7 @@ import { AdaptiveMedia, AdaptiveMediaPeriod } from '../../ext-mod/emliri-es-libs
 import { MediaSegment } from '../../ext-mod/emliri-es-libs/rialto';
 
 import { BKResourceRequest } from '../core/bk-resource-request'; // TODO: move to core
-
-const SWARM_URN_PREFIX = 'urn:livepeer:beekeeper:bittorrent:swarm-id';
+import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
 
 const SCHEDULER_FRAMERATE: number = 1;
 
@@ -46,19 +45,6 @@ export class HlsAccessProxy {
         }
     }
 
-    public getSwarmIdForVariantPlaylist(manifestUrl: string): string {
-        if (this._swarmIdCache[manifestUrl]) {
-            debug(`swarm-ID cache hit: ${this._swarmIdCache[manifestUrl]}`);
-            return this._swarmIdCache[manifestUrl];
-        }
-
-        debug(`creating swarm ID for manifest URL: ${manifestUrl}`);
-        const swarmId = SWARM_URN_PREFIX + ':' + createHash('sha1').update(manifestUrl).digest('hex');
-        debug(`created swarm ID: ${swarmId}`);
-        this._swarmIdCache[manifestUrl] = swarmId;
-        return swarmId;
-    }
-
     private _createResourceRequestMaker(swarmId: string): ResourceRequestMaker {
         debug(`new ResourceRequestMaker for ${swarmId}`);
         return ((url: string, requestOpts: ResourceRequestOptions) =>
@@ -89,7 +75,7 @@ export class HlsAccessProxy {
 
                 //const swarmId = this._getSwarmIdForVariantPlaylist(media.getUrl());
 
-                const swarmId = this.getSwarmIdForVariantPlaylist(url);
+                const swarmId = getSwarmIdForVariantPlaylist(url);
 
                 segment.setRequestMaker(this._createResourceRequestMaker(swarmId));
             });
@@ -103,7 +89,14 @@ export class HlsAccessProxy {
 
             consumer.maxConcurrentFetchInit = Infinity;
             //consumer.updateFetchTarget(5);
+        }).catch((err) => {
+
+            debug('no adaptive media refresh:', err);
+
+            debug(media)
         });
+
+
     }
 
     private _onSegmentBuffered(segment: MediaSegment) {

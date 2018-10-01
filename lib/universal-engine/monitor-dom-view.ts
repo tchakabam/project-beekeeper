@@ -78,6 +78,7 @@ export class MonitorDomView {
         private _engine: Engine,
         domRootId: string,
     ) {
+
         this._engine.getProxy().on(BKAccessProxyEvents.ResourceEnqueuedHttp, (res: BKResource) => {
             this.addResource(res, false);
         });
@@ -102,6 +103,8 @@ export class MonitorDomView {
 
     update() {
 
+        console.log('update DOM')
+
         // use JSX ?
         let html = '<div>';
         this._resourceRequests.forEach((resourceTransfer: ResourceTransferView) => {
@@ -109,7 +112,6 @@ export class MonitorDomView {
             html += '<hr />';
         });
         html += '</div>';
-
 
         this._domRootEl.innerHTML = '';
         this._domRootEl.appendChild(domify(html));

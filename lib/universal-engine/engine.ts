@@ -9,6 +9,7 @@ import { HlsAccessProxy } from './hls-access-proxy';
 import * as Debug from 'debug';
 import { VirtualPlayhead } from './virtual-playhead';
 import { MonitorDomView } from './monitor-dom-view';
+import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
 
 const debug = Debug('bk:engine:universal:engine');
 
@@ -53,7 +54,7 @@ export class Engine {
         /**
          * Monitoring view
          */
-        this._monitorDomView = !global ? new MonitorDomView(this, 'root') : null;
+        this._monitorDomView = window && window.document ? new MonitorDomView(this, 'root') : null;
     }
 
     public getProxy(): BK_IProxy{
@@ -86,7 +87,7 @@ export class Engine {
         debug('set source', url);
 
         // FIXME: this is a hack, should only be used if running directly on a media-variant playlist (not master)
-        this._proxy.setSwarmId(this._hlsProxy.getSwarmIdForVariantPlaylist(url));
+        this._proxy.setSwarmId(getSwarmIdForVariantPlaylist(url));
     }
 
     public start() {

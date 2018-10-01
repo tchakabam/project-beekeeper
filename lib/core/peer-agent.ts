@@ -71,7 +71,6 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     public constructor(
             private readonly cachedSegments: Map<string, BKResource>,
             readonly settings: {
-            useP2P: boolean,
             trackerAnnounce: string[],
             p2pSegmentDownloadTimeout: number,
             webRtcMaxMessageSize: number,
@@ -198,8 +197,6 @@ export class PeerAgent extends StringlyTypedEventEmitter<
             return;
         }
 
-        this.destroy();
-
         this._swarmId = swarmId;
         this.debug('swarm ID', this._swarmId);
 
@@ -212,9 +209,6 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     }
 
     private _createClient(infoHash: string): void {
-        if (!this.settings.useP2P) {
-            return;
-        }
 
         const clientOptions = {
             infoHash: infoHash,
