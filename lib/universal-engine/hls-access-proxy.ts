@@ -12,8 +12,7 @@ import { MediaSegment } from '../../ext-mod/emliri-es-libs/rialto';
 
 import { BKResourceRequest } from '../core/bk-resource-request'; // TODO: move to core
 import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
-
-const SCHEDULER_FRAMERATE: number = 1;
+import { TimeInterval } from '../../ext-mod/emliri-es-libs/rialto/lib/time-intervals';
 
 const debug = Debug('bk:engine:universal:hls-access-proxy');
 
@@ -21,9 +20,6 @@ export class HlsAccessProxy {
 
     private downloader: BK_IProxy;
     private mediaStreamConsumer: AdaptiveMediaStreamConsumer = null;
-    private scheduler: Scheduler = new Scheduler(SCHEDULER_FRAMERATE);
-
-    private _swarmIdCache: {[url: string]: string} = {};
 
     public constructor(loader: BK_IProxy) {
 
@@ -40,8 +36,8 @@ export class HlsAccessProxy {
     }
 
     public setFetchTarget(time: number) {
-        if (this.mediaStreamConsumer) {
-            this.mediaStreamConsumer.updateFetchTarget(time);
+        if (this.mediaStreamConsumer && time > 0) {
+            this.mediaStreamConsumer.setFetchTargetRange(new TimeInterval(0, time));
         }
     }
 
@@ -67,35 +63,23 @@ export class HlsAccessProxy {
 
     private _onAdaptiveMediaPeriodsParsed(url: string, adaptiveMediaPeriods: AdaptiveMediaPeriod[]) {
         // may get the first media of the first set in this period
-        const media: AdaptiveMedia = adaptiveMediaPeriods[0].getDefaultMedia();
+        const media: AdaptiveMedia = adaptiveMediaPeriods[0].getDefaultSet().getDefaultMedia();
 
-        media.refresh().then((media: AdaptiveMedia) => {
+        media.refresh(true).then((media: AdaptiveMedia) => {
 
             media.segments.forEach((segment: MediaSegment) => {
-
-                //const swarmId = this._getSwarmIdForVariantPlaylist(media.getUrl());
-
                 const swarmId = getSwarmIdForVariantPlaylist(url);
-
                 segment.setRequestMaker(this._createResourceRequestMaker(swarmId));
             });
 
-            const consumer: AdaptiveMediaStreamConsumer =
-                new AdaptiveMediaStreamConsumer(media, this.scheduler, (segment: MediaSegment) => {
+            this.mediaStreamConsumer
+                = new AdaptiveMediaStreamConsumer(media, (segment: MediaSegment) => {
                     this._onSegmentBuffered(segment);
                 });
 
-            this.mediaStreamConsumer = consumer;
-
-            consumer.maxConcurrentFetchInit = Infinity;
-            //consumer.updateFetchTarget(5);
         }).catch((err) => {
-
             debug('no adaptive media refresh:', err);
-
-            debug(media)
         });
-
 
     }
 
