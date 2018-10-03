@@ -16,7 +16,6 @@
 
 import * as Debug from 'debug';
 
-import {StringlyTypedEventEmitter} from './stringly-typed-event-emitter';
 import { BKResource } from './bk-resource';
 
 import {Queue} from '../../ext-mod/emliri-es-libs/rialto/lib/queue';
@@ -32,15 +31,13 @@ export class HttpDownloadQueue {
     public constructor(
         private _onLoaded: (res: Resource) => void,
         private _onError: (res: Resource, err: Resource) => void) {
-
     }
 
     public enqueue(res: BKResource): void {
-
         debug('enqueue', res.getUrl());
 
         if (this._queue.containsAtLeastOnce(res)) {
-            throw new Error('Download already enqueued resource: ' + res.getUrl());
+            throw new Error('Already enqueued resource object: ' + res.getUrl());
         }
 
         this._queue.forEach((resource) => {

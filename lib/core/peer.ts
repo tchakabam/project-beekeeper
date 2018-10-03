@@ -149,6 +149,10 @@ export class Peer extends StringlyTypedEventEmitter<
         }
     }
 
+    public getTransportInterface(): IPeerTransport {
+        return this._peerTransport;
+    }
+
     private _sendCommand(command: PeerTransportCommand): void {
         this.debug(`sending command "${command.type}" to remote peer (id='${this._id}') `);
         this._peerTransport.write(JSON.stringify(command));

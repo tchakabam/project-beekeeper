@@ -163,7 +163,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         this._httpDownloader = new HttpDownloadQueue(
             this.onResourceLoaded.bind(this),
-            this.onResourceError
+            this.onResourceError.bind(this)
         );
 
         //this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));

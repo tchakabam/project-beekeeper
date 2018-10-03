@@ -11,6 +11,11 @@ h3 {
     margin-top: 2em;
 }
 
+#netem {
+    text-align: center;
+    width: 80%;
+}
+
 #root {
     margin: auto;
     width: 80%;
@@ -34,3 +39,9 @@ h3 {
 .resource-ul {
     border: 1px solid red;
 }
+
+.slider {
+    display: inline !important;
+    width: 12em !important;
+}
+

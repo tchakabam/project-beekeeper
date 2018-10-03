@@ -95,6 +95,7 @@ export class DefaultPeerTransportFilter
     }
 
     setMaxBandwidthBps(n: number): boolean {
+        debug(`setting peer-transport ${this.id} max-bandwidth to ${n} bps`)
         this._netEmIn.maxBandwidthBps = n;
         this._netEmOut.maxBandwidthBps = n;
         return true;
