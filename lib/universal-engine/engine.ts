@@ -98,4 +98,10 @@ export class Engine {
 
         this._hlsProxy.setSource(this._sourceUrl);
     }
+
+    public setNetemPeerMaxKbps(kbpsMaxBw: number) {
+        this._proxy.getPeerConnections().forEach((peer) => {
+            peer.getTransportInterface().setMaxBandwidthBps(1000 * kbpsMaxBw);
+        })
+    }
 }

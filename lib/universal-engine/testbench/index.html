@@ -64,9 +64,17 @@
             </p>
 
             <div id="clock">
-                <label>Media-clock time (seconds):&nbsp;</label><input readonly id="media-clock" size="10"/>
+                <label>Media-clock time (seconds):&nbsp;</label>
+                <input readonly id="media-clock" size="10"/>
             </div>
+
+            <p>
+                <label>Max. Peer-Bandwidth (kbps):&nbsp;</label>
+                <input type="range" min="256" max="16000" value="8000" class="slider" id="max-bandwidth-kbps">
+            </p>
+
         </div>
+
 
         <div id="root">
         </div>
