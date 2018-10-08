@@ -54,7 +54,9 @@ export class Engine {
             // TODO: add to monitor
             //console.log('media-engine virtual clock time:', playhead.getCurrentTime())
 
-            this._hlsProxy.setFetchTarget(this._playhead.getCurrentTime() + FETCH_TARGET_PLAYHEAD_LOOK_AHEAD);
+            //this._hlsProxy.setFetchFloorCeiling(0, this._playhead.getCurrentTime() + FETCH_TARGET_PLAYHEAD_LOOK_AHEAD);
+
+            this._hlsProxy.setFetchFloorCeiling(-30);
         });
 
         /**
