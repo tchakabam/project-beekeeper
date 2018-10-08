@@ -34,14 +34,12 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
         this._processM3u8File(url);
     }
 
-    public setFetchTarget(time: number) {
+    public setFetchFloorCeiling(floor: number = 0, ceiling: number = Infinity) {
         if (!this._mediaStreamConsumer) {
             return;
         }
 
-        if (time > 0) {
-            this._mediaStreamConsumer.setFetchTargetRange(new TimeInterval(0, time));
-        }
+        this._mediaStreamConsumer.setFetchFloorCeiling(floor, ceiling);
     }
 
     public getBufferedRanges(): TimeIntervalContainer {
@@ -78,7 +76,13 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
 
         media.refresh(true, () => { // called everytime we auto-refresh
 
+            debug('setting request-makers on new segments', media.segments.length)
+
             media.segments.forEach((segment: MediaSegment) => {
+                if (segment.hasCustomRequestMaker()) {
+                    return;
+                }
+                debug('setting request-maker for:', segment.getUrl())
                 const swarmId = getSwarmIdForVariantPlaylist(url);
                 segment.setRequestMaker(this._createResourceRequestMaker(swarmId));
             });
