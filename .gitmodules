@@ -1,6 +1,6 @@
 [submodule "ext-mod/emliri-es-libs"]
 	path = ext-mod/emliri-es-libs
-	url = https://github.com/tchakabam/emliri-es-libs
+	url = git@github.com:tchakabam/emliri-es-libs.git
 [submodule "ext-mod/hls.js"]
 	path = ext-mod/hls.js
 	url = git@github.com:video-dev/hls.js.git
