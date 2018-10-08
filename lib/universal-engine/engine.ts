@@ -23,6 +23,7 @@ export class Engine {
     private _sourceUrl: string | null = null;
     private _hlsProxy: HlsAccessProxy;
     private _playhead: VirtualPlayhead;
+    private _gotFirstBufferedRange: boolean = false;
     private _monitorDomView: BKResourceTransferMonitorDomView = null;
 
     public constructor(settings: BKOptAccessProxySettings = {}) {
@@ -41,7 +42,18 @@ export class Engine {
         this._hlsProxy = new HlsAccessProxy(this._proxy);
 
         this._hlsProxy.on('buffered-range-change', () => {
-            this._onBufferedRangeChange();
+            this._playhead.setBufferedRanges(this._hlsProxy.getBufferedRanges());
+
+            if (!this._gotFirstBufferedRange) {
+                const earliestRange = this._hlsProxy.getBufferedRanges().getEarliestRange();
+                if (earliestRange) {
+
+                    this._playhead.setCurrentTime(earliestRange.start)
+                }
+            }
+
+            this._gotFirstBufferedRange = true;
+
         });
 
         /**
@@ -52,7 +64,7 @@ export class Engine {
             // TODO: add to monitor
             //console.log('media-engine virtual clock time:', playhead.getCurrentTime())
 
-            this._hlsProxy.updateFetchTarget(this._playhead.getCurrentTime());
+            this._hlsProxy.updateFetchTargetRange(this._playhead.getCurrentTime());
         });
 
         /**
@@ -103,13 +115,18 @@ export class Engine {
         this._hlsProxy.setSource(this._sourceUrl);
     }
 
+    public setMaxLiveDelaySeconds(maxLiveDelaySeconds: number) {
+        this._hlsProxy.liveDelaySeconds = maxLiveDelaySeconds;
+    }
+
+    public setMaxPlayheadLookaheadSeconds(maxPlayheadLookaheadSeconds: number) {
+        this._hlsProxy.playheadLookaheadSeconds = maxPlayheadLookaheadSeconds;
+    }
+
     public setNetemPeerMaxKbps(kbpsMaxBw: number) {
         this._proxy.getPeerConnections().forEach((peer) => {
             peer.getTransportInterface().setMaxBandwidthBps(1000 * kbpsMaxBw);
         })
     }
 
-    private _onBufferedRangeChange() {
-        this._playhead.setBufferedRanges(this._hlsProxy.getBufferedRanges());
-    }
 }

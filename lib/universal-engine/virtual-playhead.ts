@@ -65,7 +65,8 @@ export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
     }
 
     /**
-     * Should be understand as `isPlaying()´
+     * Should be understood as `isPlaying()´, indicating the intention of spinning
+     * while it can be pushed, while not spinning because data is lacking.
      */
     isPushed(): boolean {
         return this._isPlaying;
