@@ -13,8 +13,6 @@ import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
 
 const debug = Debug('bk:engine:universal:engine');
 
-const FETCH_TARGET_PLAYHEAD_LOOK_AHEAD = 10;
-
 export class Engine {
 
     public static isSupported(): boolean {
@@ -54,9 +52,7 @@ export class Engine {
             // TODO: add to monitor
             //console.log('media-engine virtual clock time:', playhead.getCurrentTime())
 
-            //this._hlsProxy.setFetchFloorCeiling(0, this._playhead.getCurrentTime() + FETCH_TARGET_PLAYHEAD_LOOK_AHEAD);
-
-            this._hlsProxy.setFetchFloorCeiling(-30);
+            this._hlsProxy.updateFetchTarget(this._playhead.getCurrentTime());
         });
 
         /**

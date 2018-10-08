@@ -14,10 +14,15 @@ import { StringlyTypedEventEmitter } from '../core/stringly-typed-event-emitter'
 
 const debug = Debug('bk:engine:universal:hls-access-proxy');
 
+const DEFAULT_PLAYHEAD_LOOK_AHEAD = 30;
+const DEFAULT_LIVE_DELAY = 30;
+
 export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-change'> {
 
     private _bkProxy: BK_IProxy;
     private _mediaStreamConsumer: AdaptiveMediaStreamConsumer = null;
+    private _liveDelaySeconds: number = DEFAULT_LIVE_DELAY;
+    private _playheadLookaheadSeconds = DEFAULT_PLAYHEAD_LOOK_AHEAD;
 
     public constructor(proxy: BK_IProxy) {
         super();
@@ -34,12 +39,17 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
         this._processM3u8File(url);
     }
 
-    public setFetchFloorCeiling(floor: number = 0, ceiling: number = Infinity) {
+    public updateFetchTarget(playheadPositionSeconds: number) {
         if (!this._mediaStreamConsumer) {
             return;
         }
 
-        this._mediaStreamConsumer.setFetchFloorCeiling(floor, ceiling);
+        if (this._mediaStreamConsumer.getMedia().isLive) {
+            this._mediaStreamConsumer.setFetchFloorCeiling(-1 * this._liveDelaySeconds);
+        } else {
+            this._mediaStreamConsumer.setFetchFloorCeiling(0,
+                playheadPositionSeconds + this._playheadLookaheadSeconds);
+        }
     }
 
     public getBufferedRanges(): TimeIntervalContainer {
@@ -74,7 +84,7 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
         // may get the first media of the first set in this period
         const media: AdaptiveMedia = adaptiveMediaPeriods[0].getDefaultSet().getDefaultMedia();
 
-        media.refresh(true, () => { // called everytime we auto-refresh
+        media.refresh(media.isLive, () => { // called everytime we auto-refresh
 
             debug('setting request-makers on new segments', media.segments.length)
 
