@@ -24,7 +24,6 @@
   ],
   "scripts": {
     "build": "npm run webpack:build",
-    "postinstall": "git submodule update --init",
     "start": "npm run start:node",
     "start:webdev": "npm run webpack:devserver",
     "start:node": "DEBUG=bk:* ts-node ./bin/node-agent.ts",
