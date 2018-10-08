@@ -56,12 +56,12 @@ class BKResourceDownloadView extends BKResourceTransferView {
     readonly isP2P: boolean = false;
 
     constructor(
-        _resource: BKResource,
+        resource: BKResource,
         private _isP2p: boolean,
         private _monitor: BKResourceTransferMonitorDomView
     ) {
 
-        super(_resource);
+        super(resource);
 
         this.isP2P = _isP2p;
 

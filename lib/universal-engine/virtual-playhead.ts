@@ -1,19 +1,30 @@
 import { StringlyTypedEventEmitter } from '../core/stringly-typed-event-emitter';
+import { TimeIntervalContainer } from '../../ext-mod/emliri-es-libs/rialto/lib/time-intervals';
+import { TimeScale } from '../../ext-mod/emliri-es-libs/rialto/lib/time-scale';
+
+import * as Debug from 'debug';
+
+const debug = Debug('bk:engine:universal:virtual-playhead');
 
 const perf = window.performance;
 
 export const UPDATE_PERIOD_MS = 500;
 
+export type VirtualPlayheadUpdateCb = (playhead: VirtualPlayhead) => void;
+
 export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
 
     private _clockTime: number = 0;
     private _updateIntervalTimer: number = null;
-    private _isPlaying: boolean;
+    private _isPlaying: boolean = false;
     private _updateCalledAt: number = null;
+    private _isSpinning: boolean = false;
+    private _bufferedTimeRanges: TimeIntervalContainer = new TimeIntervalContainer();
+    private _timeScale: TimeScale = new TimeScale(1/1000)
 
     constructor(
-        private _onUpdate: (playhead: VirtualPlayhead) => void = null
-    ){
+        private _onUpdate: VirtualPlayheadUpdateCb = null
+    ) {
         super();
     }
 
@@ -38,12 +49,19 @@ export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
         this._onUpdateTimer();
     }
 
+    /**
+     *
+     * @param time clock time in seconds
+     */
     setCurrentTime(time: number) {
-        this._clockTime = time * 1000;
+        this._clockTime = this._timeScale.denormalize(time);
     }
 
+    /**
+     * @returns clock time in seconds
+     */
     getCurrentTime(): number {
-        return this._clockTime / 1000;
+        return this._timeScale.normalize(this._clockTime);
     }
 
     /**
@@ -54,9 +72,25 @@ export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
     }
 
     /**
-     * Wether the tape is moving
+     * Whether the tape is moving
      */
     isSpinning() {
+        return this._isSpinning;
+    }
+
+    getBufferedRanges(): TimeIntervalContainer {
+        return this._bufferedTimeRanges;
+    }
+
+    setBufferedRanges(ranges: TimeIntervalContainer) {
+
+        debug('update buffered time-ranges');
+
+        this._bufferedTimeRanges = ranges;
+
+        if (!this._isSpinning) {
+            this._onUpdateTimer();
+        }
 
     }
 
@@ -64,9 +98,21 @@ export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
         const lastCalledAt = this._updateCalledAt;
         this._updateCalledAt = perf.now();
 
-        if (lastCalledAt !== null) {
+        if (!this._isPlaying) {
+            this._isSpinning = false;
+            return;
+        }
+
+        if (lastCalledAt !== null && this._isSpinning) {
             this._clockTime += (this._updateCalledAt - lastCalledAt);
         }
+
+        if (!this._isSpinning) {
+            this._updateCalledAt = null;
+        }
+
+        this._isSpinning
+            = this._bufferedTimeRanges.hasIntervalsWith(this.getCurrentTime());
 
         if (this._onUpdate) {
             this._onUpdate(this);

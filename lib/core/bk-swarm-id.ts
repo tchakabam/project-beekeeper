@@ -9,7 +9,7 @@ const swarmIdCache: {[url: string]: string} = {};
 
 export function getSwarmIdForVariantPlaylist(manifestUrl: string): string {
     if (swarmIdCache[manifestUrl]) {
-        debug(`swarm-ID cache hit: ${swarmIdCache[manifestUrl]}`);
+        //debug(`swarm-ID cache hit: ${swarmIdCache[manifestUrl]}`);
         return swarmIdCache[manifestUrl];
     }
 

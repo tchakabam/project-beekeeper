@@ -2,6 +2,7 @@ import { Resource } from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
 
 export type BKResourceMapData = Array<[string, BKResourceStatus]>;
 
+// https://github.com/Microsoft/TypeScript/issues/10853#issuecomment-246175061
 export class BKResourceMap extends Map<string, BKResourceStatus> {
     static create (array?:any[]): BKResourceMap {
         var inst: any = new Map(array);

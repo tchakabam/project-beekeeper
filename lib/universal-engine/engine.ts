@@ -13,6 +13,8 @@ import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
 
 const debug = Debug('bk:engine:universal:engine');
 
+const FETCH_TARGET_PLAYHEAD_LOOK_AHEAD = 10;
+
 export class Engine {
 
     public static isSupported(): boolean {
@@ -40,6 +42,10 @@ export class Engine {
          */
         this._hlsProxy = new HlsAccessProxy(this._proxy);
 
+        this._hlsProxy.on('buffered-range-change', () => {
+            this._onBufferedRangeChange();
+        });
+
         /**
          * VirtualPlayhead clock control
          */
@@ -48,7 +54,7 @@ export class Engine {
             // TODO: add to monitor
             //console.log('media-engine virtual clock time:', playhead.getCurrentTime())
 
-            this._hlsProxy.setFetchTarget(this._playhead.getCurrentTime());
+            this._hlsProxy.setFetchTarget(this._playhead.getCurrentTime() + FETCH_TARGET_PLAYHEAD_LOOK_AHEAD);
         });
 
         /**
@@ -103,5 +109,9 @@ export class Engine {
         this._proxy.getPeerConnections().forEach((peer) => {
             peer.getTransportInterface().setMaxBandwidthBps(1000 * kbpsMaxBw);
         })
+    }
+
+    private _onBufferedRangeChange() {
+        this._playhead.setBufferedRanges(this._hlsProxy.getBufferedRanges());
     }
 }

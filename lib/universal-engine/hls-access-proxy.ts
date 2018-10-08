@@ -1,31 +1,30 @@
 import * as Debug from 'debug';
-import { createHash } from 'crypto';
 
-import { BK_IProxy } from '../core';
-
-import { Scheduler } from '../../ext-mod/emliri-es-libs/objec-ts/lib/scheduler';
 import { HlsM3u8File } from '../../ext-mod/emliri-es-libs/rialto/lib/hls-m3u8';
 import { ResourceRequestMaker, IResourceRequest, ResourceRequestOptions } from '../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
 import { AdaptiveMediaStreamConsumer } from '../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media-client';
 import { AdaptiveMedia, AdaptiveMediaPeriod } from '../../ext-mod/emliri-es-libs/rialto/lib/adaptive-media';
 import { MediaSegment } from '../../ext-mod/emliri-es-libs/rialto';
+import { TimeInterval, TimeIntervalContainer } from '../../ext-mod/emliri-es-libs/rialto/lib/time-intervals';
 
+import { BK_IProxy } from '../core';
 import { BKResourceRequest } from '../core/bk-resource-request'; // TODO: move to core
 import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
-import { TimeInterval } from '../../ext-mod/emliri-es-libs/rialto/lib/time-intervals';
+import { StringlyTypedEventEmitter } from '../core/stringly-typed-event-emitter';
 
 const debug = Debug('bk:engine:universal:hls-access-proxy');
 
-export class HlsAccessProxy {
+export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-change'> {
 
-    private downloader: BK_IProxy;
-    private mediaStreamConsumer: AdaptiveMediaStreamConsumer = null;
+    private _bkProxy: BK_IProxy;
+    private _mediaStreamConsumer: AdaptiveMediaStreamConsumer = null;
 
-    public constructor(loader: BK_IProxy) {
+    public constructor(proxy: BK_IProxy) {
+        super();
 
         debug('created HLS access-proxy');
 
-        this.downloader = loader;
+        this._bkProxy = proxy;
     }
 
     public setSource(url: string): void {
@@ -36,19 +35,31 @@ export class HlsAccessProxy {
     }
 
     public setFetchTarget(time: number) {
-        if (this.mediaStreamConsumer && time > 0) {
-            this.mediaStreamConsumer.setFetchTargetRange(new TimeInterval(0, time));
+        if (!this._mediaStreamConsumer) {
+            return;
+        }
+
+        if (time > 0) {
+            this._mediaStreamConsumer.setFetchTargetRange(new TimeInterval(0, time));
         }
     }
 
+    public getBufferedRanges(): TimeIntervalContainer {
+        if (!this._mediaStreamConsumer) {
+            return new TimeIntervalContainer();
+        }
+
+        return this._mediaStreamConsumer.getBufferedRanges();
+    }
+
     private _createResourceRequestMaker(swarmId: string): ResourceRequestMaker {
-        debug(`new ResourceRequestMaker for ${swarmId}`);
+        //debug(`new ResourceRequestMaker for ${swarmId}`);
         return ((url: string, requestOpts: ResourceRequestOptions) =>
             this._createResourceRequest(swarmId, url, requestOpts));
     }
 
     private _createResourceRequest(swarmId: string, url: string, requestOpts: ResourceRequestOptions): IResourceRequest {
-        return new BKResourceRequest(this.downloader, swarmId, url, requestOpts);
+        return new BKResourceRequest(this._bkProxy, swarmId, url, requestOpts);
     }
 
     private _processM3u8File(url: string) {
@@ -65,14 +76,16 @@ export class HlsAccessProxy {
         // may get the first media of the first set in this period
         const media: AdaptiveMedia = adaptiveMediaPeriods[0].getDefaultSet().getDefaultMedia();
 
-        media.refresh(true).then((media: AdaptiveMedia) => {
+        media.refresh(true, () => { // called everytime we auto-refresh
 
             media.segments.forEach((segment: MediaSegment) => {
                 const swarmId = getSwarmIdForVariantPlaylist(url);
                 segment.setRequestMaker(this._createResourceRequestMaker(swarmId));
             });
 
-            this.mediaStreamConsumer
+        }).then((media: AdaptiveMedia) => { // called on first initial refresh
+
+            this._mediaStreamConsumer
                 = new AdaptiveMediaStreamConsumer(media, (segment: MediaSegment) => {
                     this._onSegmentBuffered(segment);
                 });
@@ -80,11 +93,12 @@ export class HlsAccessProxy {
         }).catch((err) => {
             debug('no adaptive media refresh:', err);
         });
-
     }
 
     private _onSegmentBuffered(segment: MediaSegment) {
         debug('segment buffered:', segment.getUrl());
+
+        this.emit('buffered-range-change', this.getBufferedRanges());
     }
 }
 
