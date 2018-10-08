@@ -21,8 +21,9 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
 
     private _bkProxy: BK_IProxy;
     private _mediaStreamConsumer: AdaptiveMediaStreamConsumer = null;
-    private _liveDelaySeconds: number = DEFAULT_LIVE_DELAY;
-    private _playheadLookaheadSeconds = DEFAULT_PLAYHEAD_LOOK_AHEAD;
+
+    liveDelaySeconds: number = DEFAULT_LIVE_DELAY;
+    playheadLookaheadSeconds = DEFAULT_PLAYHEAD_LOOK_AHEAD;
 
     public constructor(proxy: BK_IProxy) {
         super();
@@ -45,10 +46,10 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
         }
 
         if (this._mediaStreamConsumer.getMedia().isLive) {
-            this._mediaStreamConsumer.setFetchFloorCeiling(-1 * this._liveDelaySeconds);
+            this._mediaStreamConsumer.setFetchFloorCeiling(-1 * this.liveDelaySeconds);
         } else {
             this._mediaStreamConsumer.setFetchFloorCeiling(0,
-                playheadPositionSeconds + this._playheadLookaheadSeconds);
+                playheadPositionSeconds + this.playheadLookaheadSeconds);
         }
     }
 
