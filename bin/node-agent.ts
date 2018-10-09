@@ -8,7 +8,7 @@ const argv = require('yargs').argv
 
 const WebSocketClient = require('websocket').client;
 
-import {Engine, BKAccessProxyEvents} from '../engines/universal-engine/lib';
+import {Engine, BKAccessProxyEvents} from '../lib/universal-engine';
 
 const engine = new Engine();
 
@@ -22,7 +22,8 @@ engine.getPlayhead().on('update', () => {
 
 engine.getPlayhead().play();
 
-engine.setSource('https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8');
+engine.setSource('https://zdf-msl4test.akamaized.net/hls/live/670887/zdf_ngp/df25d6b00fd1015db40b90a182f9f4fd/5.m3u8');
+
 engine.start();
 
 /*
