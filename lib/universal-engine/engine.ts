@@ -23,7 +23,7 @@ export class Engine {
     private _sourceUrl: string | null = null;
     private _hlsProxy: HlsAccessProxy;
     private _playhead: VirtualPlayhead;
-    private _gotFirstBufferedRange: boolean = false;
+    private _gotEarliestRequestedRangeBuffered: boolean = false;
     private _monitorDomView: BKResourceTransferMonitorDomView = null;
 
     public constructor(settings: BKOptAccessProxySettings = {}) {
@@ -44,16 +44,18 @@ export class Engine {
         this._hlsProxy.on('buffered-range-change', () => {
             this._playhead.setBufferedRanges(this._hlsProxy.getBufferedRanges());
 
-            if (!this._gotFirstBufferedRange) {
-                const earliestRange = this._hlsProxy.getBufferedRanges().getEarliestRange();
-                if (earliestRange) {
+            if (!this._gotEarliestRequestedRangeBuffered) {
 
-                    this._playhead.setCurrentTime(earliestRange.start)
+                const earliestRangeRequested = this._hlsProxy.getRequestedRanges().getEarliestRange();
+                const earliestRangeBuffered = this._hlsProxy.getBufferedRanges().getEarliestRange();
+
+                if (earliestRangeRequested && earliestRangeBuffered) {
+                    if (earliestRangeBuffered.start === earliestRangeRequested.start) {
+                        this._gotEarliestRequestedRangeBuffered = true;
+                        this._playhead.setCurrentTime(earliestRangeBuffered.start);
+                    }
                 }
             }
-
-            this._gotFirstBufferedRange = true;
-
         });
 
         /**
