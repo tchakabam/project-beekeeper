@@ -5,6 +5,8 @@ import {NetworkChannelEmulator} from './network-channel-emulator';
 import * as Debug from 'debug';
 import { BKResourceMapData } from './bk-resource';
 
+import { utf8BytesToString } from '../../ext-mod/emliri-es-libs/rialto/lib/bytes-read-write';
+
 const debug = Debug('bk:core:peer-transport');
 
 export enum PeerCommandType {
@@ -28,7 +30,11 @@ export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTranspor
     // Serialized JSON string check by first, second and last characters: '{" .... }'
     if (bytes[0] == 123 && bytes[1] == 34 && bytes[data.byteLength - 1] == 125) {
         try {
-            return JSON.parse(new TextDecoder('utf-8').decode(data));
+
+            return JSON.parse(utf8BytesToString(bytes));
+
+            // BROKEN: doesn't work in Node, this does ^
+            //return JSON.parse(new TextDecoder('utf-8').decode(data));
         } catch {
         }
     }

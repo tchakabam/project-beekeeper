@@ -190,7 +190,11 @@ export class Peer extends StringlyTypedEventEmitter<
         if (!this._downloadingSegment) {
             // The segment was not requested or canceled
             this.debug(`received data from remote peer (id='${this._id}') for non-requested or canceled segment :(`);
-            return;
+            //return;
+
+            console.log(data);
+
+            throw new Error('Runtime self-check failed: unexpected data received from peer')
         }
 
         this._downloadingSegment.bytesDownloaded += data.byteLength;
@@ -221,6 +225,18 @@ export class Peer extends StringlyTypedEventEmitter<
     }
 
     private _onPeerData(data: ArrayBuffer): void {
+
+        ///*
+        if (data instanceof Buffer) {
+            data = data.buffer;
+        }
+        //*/
+
+        if (!(data instanceof ArrayBuffer)) {
+            console.log(data)
+            throw new Error('Assertion failed: data not an ArrayBuffer');
+        }
+
         const command = decodeMediaPeerTransportCommand(data);
         if (!command) {
             this._handleSegmentChunk(data);
