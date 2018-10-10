@@ -28,7 +28,7 @@ export type PeerTransportCommand = {
 export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTransportCommand | null {
     const bytes = new Uint8Array(data);
     // Serialized JSON string check by first, second and last characters: '{" .... }'
-    //if (bytes[0] == 123 && bytes[1] == 34 && bytes[data.byteLength - 1] == 125) {
+    if (bytes[0] == 123 && bytes[1] == 34 && bytes[data.byteLength - 1] == 125) {
         try {
             return JSON.parse(utf8BytesToString(bytes));
             // BROKEN: doesn't work in Node, this does ^
@@ -36,7 +36,7 @@ export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTranspor
         } catch {
             throw new Error('Failed to decode message')
         }
-    //}
+    }
     return null;
 }
 
