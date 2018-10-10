@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 const nodeStatic = require('node-static');
+const path = require('path');
 
-const publicPath = path.resolve('./')
+const publicPath = path.resolve('./');
 
 console.log('# Beekeeper NodeAgent >', 'public path:', publicPath, '\n')
 

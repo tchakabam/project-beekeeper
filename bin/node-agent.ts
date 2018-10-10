@@ -6,9 +6,6 @@ declare var process: any
 
 require('./node-shims');
 
-const argv = require('yargs').argv;
-const path = require('path');
-
 import * as BeekeeprUniversalEngineNode from '../build/BeekeeprUniversalEngineNode.umd';
 
 const {BKAccessProxyEvents, Engine} = BeekeeprUniversalEngineNode;
