@@ -82,7 +82,12 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
     private _processM3u8File(url: string) {
         const m3u8 = new HlsM3u8File(url);
 
+        debug('going to fetch playlist-uri:', url);
+
         m3u8.fetch().then(() => {
+
+            debug('loaded playlist-uri:', url);
+
             m3u8.parse().then((adaptiveMediaPeriods: AdaptiveMediaPeriod[]) => {
                 this._onAdaptiveMediaPeriodsParsed(url, adaptiveMediaPeriods);
             });

@@ -5470,7 +5470,9 @@ var HlsAccessProxy = /** @class */ (function (_super) {
     HlsAccessProxy.prototype._processM3u8File = function (url) {
         var _this = this;
         var m3u8 = new hls_m3u8_1.HlsM3u8File(url);
+        debug('going to fetch playlist-uri:', url);
         m3u8.fetch().then(function () {
+            debug('loaded playlist-uri:', url);
             m3u8.parse().then(function (adaptiveMediaPeriods) {
                 _this._onAdaptiveMediaPeriodsParsed(url, adaptiveMediaPeriods);
             });
