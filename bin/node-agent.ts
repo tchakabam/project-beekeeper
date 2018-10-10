@@ -27,7 +27,7 @@ require('http').createServer(function (request, response) {
     request.addListener('end', function () {
         file.serve(request, response);
     }).resume();
-}).listen(8080 || process.env.PORT);
+}).listen(process.env.PORT || 8080);
 
 console.log('# Beekeeper NodeAgent >', 'agent proc launched\n')
 
