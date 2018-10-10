@@ -4,3 +4,6 @@
 [submodule "ext-mod/hls.js"]
 	path = ext-mod/hls.js
 	url = git@github.com:video-dev/hls.js.git
+[submodule "ext-mod/node-http-xhr"]
+	path = ext-mod/node-http-xhr
+	url = https://github.com/tchakabam/node-http-xhr.git
