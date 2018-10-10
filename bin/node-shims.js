@@ -1,9 +1,3 @@
-// Standalone usage
-var XMLHttpRequest = require('node-http-xhr');
-
-// Usage as global XHR constructor
-global.XMLHttpRequest = require('../ext-mod/node-http-xhr/lib');
-
 var URL = require('url');
 
 global.URL = URL;

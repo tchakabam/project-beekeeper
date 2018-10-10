@@ -1,1 +1,1 @@
-web: npm start
+web: DEBUG=bk:* ./node_modules/.bin/ts-node ./prebuilt-dist/bin/node-agent.ts

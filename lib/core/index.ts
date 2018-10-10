@@ -16,6 +16,12 @@
 
 declare var __VERSION__: any;
 
+export const XMLHttpRequest = require('../../ext-mod/node-http-xhr/lib');
+
+if (global) {
+    (global as any).XMLHttpRequest = XMLHttpRequest;
+}
+
 export {
     BKAccessProxy,
     BKAccessProxyEvents,

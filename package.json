@@ -14,11 +14,12 @@
   ],
   "scripts": {
     "build": "npm run webpack:build",
-    "deploy": "cp -R bin prebuilt-dist && cp -R build prebuilt-dist",
+    "make-prebuilt": "cp -R bin prebuilt-dist && cp -R build prebuilt-dist",
     "start": "npm run start:node",
     "start:webdev": "npm run webpack:devserver",
     "start:node": "DEBUG=bk:* ts-node ./bin/node-agent.ts",
     "start:herd": "ts-node ./bin/agent-herd.ts",
+    "ts-node": "ts-node",
     "test": "jest",
     "lint": "eslint --ext .ts --ext .js .",
     "webpack:build": "rimraf ./build && webpack --progress",

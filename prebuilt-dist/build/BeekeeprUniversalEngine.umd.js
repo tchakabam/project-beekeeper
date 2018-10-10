@@ -2630,6 +2630,847 @@ exports.XHR = XHR;
 
 /***/ }),
 
+/***/ "./ext-mod/node-http-xhr/lib/index.js":
+/*!********************************************!*\
+  !*** ./ext-mod/node-http-xhr/lib/index.js ***!
+  \********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(Buffer) {
+
+/**
+ * Node.js `XMLHttpRequest` implementation using `http.request()`.
+ *
+ * @module node-http-xhr
+ * @author Stan Zhang <stan.zhang2@gmail.com>
+ */
+
+var url = __webpack_require__(/*! url */ "./node_modules/url/url.js");
+var http = __webpack_require__(/*! http */ "./node_modules/stream-http/index.js");
+var https = __webpack_require__(/*! https */ "./node_modules/https-browserify/index.js");
+
+var NodeXHREventTarget = __webpack_require__(/*! ./node-xhr-event-target */ "./ext-mod/node-http-xhr/lib/node-xhr-event-target.js");
+
+/**
+ * Currently-supported response types.
+ *
+ * @private
+ * @readonly
+ * @type {Object<String, Boolean>}
+ */
+var supportedResponseTypes = Object.freeze({
+  /** Text response (implicit) */
+  '': true,
+  /** Text response */
+  'text': true,
+  /** Binary-data response */
+  'arraybuffer': true,
+  /** JSON response */
+  'json': true
+});
+
+/**
+ * Makes a request using either `http.request` or `https.request`, depending
+ * on the value of `opts.protocol`.
+ *
+ * @private
+ * @param {Object} opts - Options for the request.
+ * @param {Function} cb - Callback for request.
+ * @returns {ClientRequest} The request.
+ */
+function makeRequest(opts, cb) {
+  if (opts.protocol === 'http:') {
+    return http.request(opts, cb);
+  } else if (opts.protocol === 'https:') {
+    return https.request(opts, cb);
+  }
+
+  throw new Error('Unsupported protocol "' + opts.protcol + '"');
+}
+
+/**
+ * Creates a new `XMLHttpRequest`.
+ *
+ * @classdesc A wrapper around `http.request` that attempts to emulate the
+ * `XMLHttpRequest` API.
+ *
+ * NOTE: Currently, some features are lacking:
+ * - Some ProgressAPI events (`loadstart`, `loadend`, `progress`)
+ * - `responseType` values other than '' or 'text' and corresponding parsing
+ *   - As a result of the above, `overrideMimeType()` isn't very useful
+ * - `setRequestHeader()` doesn't check for forbidden headers.
+ * - `withCredentials` is defined as an instance property, but doesn't do
+ *   anything since there's no use case for CORS-like requests in `node.js`
+ *   right now.
+ *
+ * See {@link
+ * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+ * `XMLHttpRequest` on MDN
+ * } for more details.
+ *
+ * @class
+ * @extends module:node-xhr-event-target
+ */
+module.exports = function () {
+  NodeXHREventTarget.call(this);
+
+  /**
+   * Current ready state.
+   *
+   * @private
+   */
+  this._readyState = this.UNSENT;
+
+  /**
+   * MIME type to use instead of the type specified by the response, or `null`
+   * to use the response MIME type.
+   *
+   * @type {?String}
+   * @private
+   */
+  this._mimetype = null;
+
+  /**
+   * Options for `http.request`.
+   *
+   * @see {@link
+   * https://nodejs.org/dist/latest/docs/api/http.html
+   * node.js `http` docs
+   * }
+   * @private
+   * @type {Object}
+   */
+  this._reqOpts = {
+    timeout: 0,
+    headers: {}
+  };
+
+  /**
+   * The request (instance of `http.ClientRequest`), or `null` if the request
+   * hasn't been sent.
+   *
+   * @private
+   * @type {?http.ClientRequest}
+   */
+  this._req = null;
+
+  /**
+   * The response (instance of `http.IncomingMessage`), or `null` if the
+   * response has not arrived yet.
+   *
+   * @private
+   * @type {?http.IncomingMessage}
+   */
+  this._resp = null;
+
+  /**
+   * The type of the response. Currently, only `''` and `'text'` are
+   * supported, which both indicate the response should be a `String`.
+   *
+   * @private
+   * @type {String}
+   * @default ''
+   */
+  this._responseType = '';
+
+  /**
+   * The current response text, or `null` if the request hasn't been sent or
+   * was unsuccessful.
+   *
+   * @private
+   * @type {?String}
+   */
+  this._responseText = null;
+
+  /**
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/response
+   *
+   * @private
+   * @type {ArrayBuffer | String | Object}
+   */
+  this._response = null;
+};
+
+/** @alias module:node-http-xhr */
+var NodeHttpXHR = module.exports;
+
+//
+// Set up public API
+//
+NodeHttpXHR.prototype = Object.create(
+  NodeXHREventTarget.prototype,
+  /** @lends module:node-http-xhr.prototype */
+  {
+    /**
+     * Ready state indicating the request has been created, but `open()` has not
+     * been called yet.
+     *
+     * @type {Number}
+     * @default 0
+     * @readonly
+     */
+    UNSENT: { value: 0 },
+    /**
+     * Ready state indicating that `open()` has been called, but the headers
+     * have not been received yet.
+     *
+     * @type {Number}
+     * @default 1
+     * @readonly
+     */
+    OPENED: { value: 1 },
+    /**
+     * Ready state indicating that `send()` has been called and the response
+     * headers have been received.
+     *
+     * @type {Number}
+     * @default 2
+     * @readonly
+     */
+    HEADERS_RECEIVED: { value: 2 },
+    /**
+     * Ready state indicating that the response body is being loaded.
+     *
+     * @type {Number}
+     * @default 3
+     * @readonly
+     */
+    LOADING: { value: 3 },
+    /**
+     * Ready state indicating that the response has completed, or the request
+     * was aborted/encountered an error.
+     *
+     * @type {Number}
+     * @default 4
+     * @readonly
+     */
+    DONE: { value: 4 },
+    /**
+     * The current ready state.
+     *
+     * @type {Number}
+     * @readonly
+     */
+    readyState: {
+      get: function getReadyState() { return this._readyState; }
+    },
+    /**
+     * The status code for the response, or `0` if the response headers have
+     * not been received yet.
+     *
+     * @type {Number}
+     * @example 200
+     * @readonly
+     */
+    status: {
+      get: function getStatus() {
+        if (!this._resp) {
+          return 0;
+        }
+
+        return this._resp.statusCode;
+      }
+    },
+    /**
+     * The status text for the response, or `''` if the response headers have
+     * not been received yet.
+     *
+     * @type {String}
+     * @example 'OK'
+     * @readonly
+     */
+    statusText: {
+      get: function getStatusText() {
+        if (!this._resp) {
+          return '';
+        }
+
+        return this._resp.statusMessage;
+      }
+    },
+    /**
+     * The timeout for the request, in milliseconds. `0` means no timeout.
+     *
+     * @type {Number}
+     * @default 0
+     */
+    timeout: {
+      get: function getTimeout() { return this._reqOpts.timeout; },
+      set: function setTimeout(timeout) {
+        this._reqOpts.timeout = timeout;
+        if (this._req) {
+          this._req.setTimeout(timeout);
+        }
+      }
+    },
+    /**
+     * The type of the response. Currently, only `''` and `'text'` are
+     * supported, which both indicate the response should be a `String`.
+     *
+     * @see {@link
+     * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseType
+     * `XMLHttpRequest.responseType` on MDN
+     * }
+     *
+     * @type {String}
+     * @default ''
+     */
+    responseType: {
+      get: function () { return this._responseType; },
+      set: function (responseType) {
+        if (!(responseType in supportedResponseTypes)) {
+          return;
+        }
+
+        this._responseType = responseType;
+      }
+    },
+    /**
+     * The response, encoded according to {@link
+     * module:node-http-xhr#responseType
+     * `responseType`
+     * }.
+     *
+     * If `send()` has not been called yet, this is `null`.
+     *
+     * If `responseType` is `''` or `'text'`, this is a `String` and will be
+     * be incomplete until the response actually finishes.
+     *
+     * @type {?*}
+     * @default ''
+     * @readonly
+     */
+    response: {
+      get: function getResponse() {
+        var type = this.responseType;
+        if (!(type in supportedResponseTypes)) {
+          throw new Error('Unsupported responseType "' + type + '"');
+        }
+
+        switch (type) {
+        case '':
+        case 'text':
+          return this._responseText;
+        case 'json':
+          return JSON.parse(this._responseText);
+        case 'arraybuffer':
+          return this._response.buffer;
+        default:
+          throw new Error('Assertion failed: unsupported response-type: ' + type);
+        }
+      }
+    },
+    /**
+     * The response body as a string.
+     *
+     * If `send()` has not been called yet, this is `null`.
+     *
+     * This will be incomplete until the response actually finishes.
+     *
+     * @type {?String}
+     * @throws when `response` not a String
+     * @readonly
+     */
+    responseText: {
+      get: function getResponseText() {
+
+        // @see https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseText#Exceptions
+        if (this._responseType !== 'text' && this._responseType !== '') {
+          throw new Error('InvalidStateError: Response-type is ' + this._responseType);
+        }
+
+        return this._responseText;
+      }
+    },
+    /**
+     * Indicates whether or not cross-site `Access-Control` requests should be
+     * made using credentials such as cookies, authorization headers, or TLS
+     * client certificates.
+     *
+     * This flag doesn't do anything at the moment because there isn't much of
+     * a use case for doing CORS-like requests in Node.js at the moment.
+     *
+     * @type {Boolean}
+     * @default false
+     */
+    withCredentials: { value: false, writable: true }
+  }
+);
+
+/**
+ * Sets the ready state and emits the `readystatechange` event.
+ *
+ * @private
+ * @param {Number} readyState - The new ready state.
+ */
+NodeHttpXHR.prototype._setReadyState = function (readyState) {
+  this._readyState = readyState;
+  this.dispatchEvent({
+    type: 'readystatechange'
+  });
+};
+
+/**
+ * Aborts the request if it has already been sent.
+ */
+NodeHttpXHR.prototype.abort = function () {
+  if (this.readyState === this.UNSENT || this.readyState === this.DONE) {
+    return;
+  }
+
+  if (this._req) {
+    this._req.abort();
+  }
+};
+
+/**
+ * Returns all the response headers, separated by CRLF, as a string.
+ *
+ * @returns {?String} The response headers, or `null` if no response yet.
+ */
+NodeHttpXHR.prototype.getAllResponseHeaders = function () {
+  if (this.readyState < this.HEADERS_RECEIVED) {
+    return null;
+  }
+
+  var headers = this._resp.headers;
+  return Object.keys(headers).reduce(function (str, name) {
+    return str.concat(name + ': ' + headers[name] + '\r\n');
+  }, '');
+};
+
+/**
+ * Returns the string containing the text of the specified header.
+ *
+ * @param {String} name - The header's name.
+ * @returns {?String} The header's value, or `null` if no response yet or
+ * the header does not exist in the response.
+ */
+NodeHttpXHR.prototype.getResponseHeader = function (name) {
+  if (this.readyState < this.HEADERS_RECEIVED) {
+    return null;
+  }
+
+  return this._resp.headers[name.toLowerCase()] || null;
+};
+
+/**
+ * Initializes a request.
+ *
+ * @param {String} method - The HTTP method to use.
+ * @param {String} reqUrl - The URL to send the request to.
+ * @param {Boolean} [async=true] - Whether or not the request is asynchronous.
+ */
+NodeHttpXHR.prototype.open = function (method, reqUrl, async) {
+  if (async === false) {
+    throw new Error('Synchronous requests not implemented');
+  }
+
+  if (this._readyState > this.UNSENT) {
+    this.abort();
+    return;
+  }
+
+  var opts = this._reqOpts;
+  opts.method = method;
+
+  var urlObj = url.parse(reqUrl);
+  ['protocol', 'hostname', 'port', 'path'].forEach(function (key) {
+    if (key in urlObj) {
+      opts[key] = urlObj[key];
+    }
+  });
+
+  this._setReadyState(this.OPENED);
+};
+
+/**
+ * Overrides the MIME type returned by the server.
+ *
+ * Must be called before `#send()`.
+ *
+ * @param {String} mimetype - The MIME type to use.
+ */
+NodeHttpXHR.prototype.overrideMimeType = function (mimetype) {
+  if (this._req) {
+    throw new Error('overrideMimeType() called after send()');
+  }
+
+  this._mimetype = mimetype;
+};
+
+/**
+ * Sets the value of a request header.
+ *
+ * Must be called before `#send()`.
+ *
+ * @param {String} header - The header's name.
+ * @param {String} value - The header's value.
+ */
+NodeHttpXHR.prototype.setRequestHeader = function (header, value) {
+  if (this.readyState < this.OPENED) {
+    throw new Error('setRequestHeader() called before open()');
+  }
+
+  if (this._req) {
+    throw new Error('setRequestHeader() called after send()');
+  }
+
+  this._reqOpts.headers[header] = value;
+};
+
+/**
+ * Sends the request.
+ *
+ * @param {*} [data] - The request body.
+ */
+NodeHttpXHR.prototype.send = function (data) {
+  var onAbort = function onAbort() {
+    this._setReadyState(this.DONE);
+
+    this.dispatchEvent({
+      type: 'abort'
+    });
+  }.bind(this);
+
+  var opts = this._reqOpts;
+  var req = makeRequest(opts, function onResponse(resp) {
+    this._resp = resp;
+    this._responseText = '';
+
+    // var contentType = resp.headers['content-type'];
+    // TODO: adjust responseType from content-type header if applicable
+
+    // from Node API docs: The encoding argument is optional and only applies when chunk is a string. Defaults to 'utf8'.
+    if (this._responseType === 'text' || this._responseType === '') {
+      resp.setEncoding('utf8');
+    }
+
+    resp.on('data', function onData(chunk) {
+
+      if (typeof chunk === 'string') {
+        this._responseText += chunk;
+      } else if (typeof chunk === 'object') {
+        if (!(chunk instanceof Buffer)) {
+          throw new Error('Assertion failed: Response-data should be of `Buffer` type');
+        }
+        if (this._response) {
+          this._response = Buffer.concat([this._response, chunk]);
+        } else {
+          this._response = chunk;
+        }
+      }
+
+      if (this.readyState !== this.LOADING) {
+        this._setReadyState(this.LOADING);
+      }
+
+    }.bind(this));
+
+    resp.on('end', function onEnd() {
+      this._setReadyState(this.DONE);
+      this.dispatchEvent({
+        type: 'load'
+      });
+    }.bind(this));
+
+    this._setReadyState(this.HEADERS_RECEIVED);
+  }.bind(this));
+
+  // Passing `opts.timeout` doesn't actually seem to set the timeout sometimes,
+  // so it is set manually here.
+  req.setTimeout(opts.timeout);
+
+  req.on('abort', onAbort);
+  req.on('aborted', onAbort);
+
+  req.on('timeout', function onTimeout() {
+    this._setReadyState(this.DONE);
+    this.dispatchEvent({
+      type: 'timeout'
+    });
+  }.bind(this));
+
+  req.on('error', function onError(err) {
+    if (this._listenerCount('error') < 1) {
+      // Uncaught error; throw something more meaningful
+      throw err;
+    }
+
+    // Dispatch an error event. The specification does not provide for any way
+    // to communicate the failure reason with the event object.
+    this.dispatchEvent({
+      type: 'error'
+    });
+
+    this._setReadyState(this.DONE);
+  }.bind(this));
+
+  if (data) {
+    req.write(data);
+  }
+  req.end();
+
+  this._req = req;
+};
+
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../node_modules/node-libs-browser/node_modules/buffer/index.js */ "./node_modules/node-libs-browser/node_modules/buffer/index.js").Buffer))
+
+/***/ }),
+
+/***/ "./ext-mod/node-http-xhr/lib/node-event-target.js":
+/*!********************************************************!*\
+  !*** ./ext-mod/node-http-xhr/lib/node-event-target.js ***!
+  \********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ * Node.js `EventTarget` implementation using Node's `EventEmitter`.
+ *
+ * @module node-event-target
+ * @author Stan Zhang <stan.zhang2@gmail.com>
+ */
+
+var EventEmitter = __webpack_require__(/*! events */ "./node_modules/node-libs-browser/node_modules/events/events.js").EventEmitter;
+
+/**
+ * Creates a new `EventTarget`.
+ *
+ * @classdesc The interface implemented by objects that can receive events and
+ * may have listeners for them.
+ *
+ * See {@link
+ * https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
+ * `EventTarget` on MDN
+ * } for more details.
+ *
+ * @class
+ */
+module.exports = function () {
+  EventEmitter.call(this);
+};
+
+/** @alias module:node-event-target */
+var EventTarget = module.exports;
+
+//
+// Inherit some EventEmitter functions as private functions
+//
+['on', 'removeListener', 'emit', 'listeners'].forEach(function (key) {
+  Object.defineProperty(EventTarget.prototype, '_' + key, {
+    value: EventEmitter.prototype[key]
+  });
+});
+
+Object.defineProperty(EventTarget.prototype, '_listenerCount', {
+  value: 'listenerCount' in EventEmitter.prototype
+  ? EventEmitter.prototype.listenerCount
+  // Shim `EventEmitter#listenerCount` support
+  : function (event) {
+    return this._listeners(event).length;
+  }
+});
+
+//
+// Wrap the event listener methods so that the `EventEmitter` events are not
+// exposed.
+//
+
+/**
+ * Adds an event listener.
+ *
+ * @see {@link
+ * https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+ * `EventTarget.addEventListener` on MDN
+ * }
+ * @param {String} type - The event type.
+ * @param {Function} listener - The callback.
+ * @param {Object} [options] - Options for the listener.
+ * @param {Boolean} [options.once=false] - Invoke listener once.
+ */
+EventTarget.prototype.addEventListener = function (type, listener, options) {
+  // Re-implement `#once()` behavior
+  // This is necessary because the built-in `#once()` calls functions that we've
+  // renamed on the prototype.
+  var fired = false;
+
+  /** @this NodeHttpXHR */
+  function onceListener() {
+    this._removeListener(type, onceListener);
+
+    if (!fired) {
+      fired = true;
+      listener.apply(this, arguments);
+    }
+  }
+
+  this._on(type, options && options.once
+    ? onceListener
+    : listener
+  );
+};
+
+/**
+ * Removes an event listener.
+ *
+ * @see {@link
+ * https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener
+ * `EventTarget.removeEventListener` on MDN
+ * }
+ * @param {String} type - The event type.
+ * @param {Function} listener - The callback.
+ */
+EventTarget.prototype.removeEventListener = function (type, listener) {
+  this._removeListener(type, listener);
+};
+
+/**
+ * Dispatches an event.
+ *
+ * @see {@link
+ * https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
+ * `EventTarget.dispatchEvent` on MDN
+ * }
+ * @param {Object} event - The event to dispatch.
+ */
+EventTarget.prototype.dispatchEvent = function (event) {
+  event.target = this;
+  this._emit(event.type, event);
+};
+
+
+
+/***/ }),
+
+/***/ "./ext-mod/node-http-xhr/lib/node-xhr-event-target.js":
+/*!************************************************************!*\
+  !*** ./ext-mod/node-http-xhr/lib/node-xhr-event-target.js ***!
+  \************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ * Node.js `XMLHttpRequestEventTarget` implementation.
+ *
+ * @module node-xhr-event-target
+ * @author Stan Zhang <stan.zhang2@gmail.com>
+ */
+
+var EventTarget = __webpack_require__(/*! ./node-event-target */ "./ext-mod/node-http-xhr/lib/node-event-target.js");
+
+var events = [
+  /**
+   * The {@link
+   * module:node-http-xhr#readyState
+   * `readyState`
+   * } changed.
+   *
+   * @event module:node-xhr-event-target#readystatechange
+   */
+  'readystatechange',
+  /**
+   * The request was aborted.
+   *
+   * @event module:node-xhr-event-target#abort
+   */
+  'abort',
+  /**
+   * An error was encountered.
+   *
+   * @event module:node-xhr-event-target#error
+   * @type {Error}
+  */
+  'error',
+  /**
+   * The request timed out.
+   *
+   * @event module:node-xhr-event-target#timeout
+   */
+  'timeout',
+  /**
+   * The response finished loading.
+   *
+   * @event module:node-xhr-event-target#load
+   */
+  'load'
+];
+
+/**
+ * Creates a new `XMLHttpRequestEventTarget`.
+ *
+ * @classdesc The interface that describes the event handlers for an
+ * `XMLHttpRequest`.
+ *
+ * NOTE: Currently, some features are lacking:
+ * - Some ProgressAPI events (`loadstart`, `loadend`, `progress`)
+ *
+ * See {@link
+ * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget
+ * `XMLHttpRequestEventTarget` on MDN
+ * } for more details.
+ *
+ * @class
+ * @extends module:node-event-target
+ */
+module.exports = function () {
+  EventTarget.call(this);
+
+  var props = {};
+
+  // Add private event handler properties
+  events.forEach(function (type) {
+    props['_on' + type] = { value: null, writable: true };
+  });
+
+  Object.defineProperties(this, props);
+};
+
+/** @alias module:node-xhr-event-target */
+var NodeXHREventTarget = module.exports;
+
+var protoProps = {};
+
+//
+// Set up event handler properties
+//
+events.forEach(function (type) {
+  var key = 'on' + type;
+  protoProps[key] = {
+    get: function getHandler() { return this['_' + key]; },
+    set: function setHandler(handler) {
+      if (typeof handler === 'function') {
+        this.addEventListener(type, handler);
+        this['_' + key] = handler;
+      } else {
+        var old = this['_' + key];
+        if (old) {
+          this.removeEventListener(type, old);
+        }
+
+        this['_' + key] = null;
+      }
+    }
+  };
+});
+
+NodeXHREventTarget.prototype = Object.create(
+  EventTarget.prototype, protoProps
+);
+
+
+
+/***/ }),
+
 /***/ "./lib/core/bandwidth-estimator.ts":
 /*!*****************************************!*\
   !*** ./lib/core/bandwidth-estimator.ts ***!
@@ -3447,6 +4288,10 @@ exports.HttpDownloadQueue = HttpDownloadQueue;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.XMLHttpRequest = __webpack_require__(/*! ../../ext-mod/node-http-xhr/lib */ "./ext-mod/node-http-xhr/lib/index.js");
+if (global) {
+    global.XMLHttpRequest = exports.XMLHttpRequest;
+}
 var bk_access_proxy_1 = __webpack_require__(/*! ./bk-access-proxy */ "./lib/core/bk-access-proxy.ts");
 exports.BKAccessProxy = bk_access_proxy_1.BKAccessProxy;
 exports.BKAccessProxyEvents = bk_access_proxy_1.BKAccessProxyEvents;
@@ -12946,6 +13791,81 @@ module.exports = verify
 }
 
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../node-libs-browser/node_modules/buffer/index.js */ "./node_modules/node-libs-browser/node_modules/buffer/index.js").Buffer))
+
+/***/ }),
+
+/***/ "./node_modules/builtin-status-codes/browser.js":
+/*!******************************************************!*\
+  !*** ./node_modules/builtin-status-codes/browser.js ***!
+  \******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = {
+  "100": "Continue",
+  "101": "Switching Protocols",
+  "102": "Processing",
+  "200": "OK",
+  "201": "Created",
+  "202": "Accepted",
+  "203": "Non-Authoritative Information",
+  "204": "No Content",
+  "205": "Reset Content",
+  "206": "Partial Content",
+  "207": "Multi-Status",
+  "208": "Already Reported",
+  "226": "IM Used",
+  "300": "Multiple Choices",
+  "301": "Moved Permanently",
+  "302": "Found",
+  "303": "See Other",
+  "304": "Not Modified",
+  "305": "Use Proxy",
+  "307": "Temporary Redirect",
+  "308": "Permanent Redirect",
+  "400": "Bad Request",
+  "401": "Unauthorized",
+  "402": "Payment Required",
+  "403": "Forbidden",
+  "404": "Not Found",
+  "405": "Method Not Allowed",
+  "406": "Not Acceptable",
+  "407": "Proxy Authentication Required",
+  "408": "Request Timeout",
+  "409": "Conflict",
+  "410": "Gone",
+  "411": "Length Required",
+  "412": "Precondition Failed",
+  "413": "Payload Too Large",
+  "414": "URI Too Long",
+  "415": "Unsupported Media Type",
+  "416": "Range Not Satisfiable",
+  "417": "Expectation Failed",
+  "418": "I'm a teapot",
+  "421": "Misdirected Request",
+  "422": "Unprocessable Entity",
+  "423": "Locked",
+  "424": "Failed Dependency",
+  "425": "Unordered Collection",
+  "426": "Upgrade Required",
+  "428": "Precondition Required",
+  "429": "Too Many Requests",
+  "431": "Request Header Fields Too Large",
+  "451": "Unavailable For Legal Reasons",
+  "500": "Internal Server Error",
+  "501": "Not Implemented",
+  "502": "Bad Gateway",
+  "503": "Service Unavailable",
+  "504": "Gateway Timeout",
+  "505": "HTTP Version Not Supported",
+  "506": "Variant Also Negotiates",
+  "507": "Insufficient Storage",
+  "508": "Loop Detected",
+  "509": "Bandwidth Limit Exceeded",
+  "510": "Not Extended",
+  "511": "Network Authentication Required"
+}
+
 
 /***/ }),
 
@@ -23407,6 +24327,48 @@ module.exports = function(tag, attribs, text) {
 
   return html + '>' + text + '</' + tag + '>';
 };
+
+
+/***/ }),
+
+/***/ "./node_modules/https-browserify/index.js":
+/*!************************************************!*\
+  !*** ./node_modules/https-browserify/index.js ***!
+  \************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var http = __webpack_require__(/*! http */ "./node_modules/stream-http/index.js")
+var url = __webpack_require__(/*! url */ "./node_modules/url/url.js")
+
+var https = module.exports
+
+for (var key in http) {
+  if (http.hasOwnProperty(key)) https[key] = http[key]
+}
+
+https.request = function (params, cb) {
+  params = validateParams(params)
+  return http.request.call(this, params, cb)
+}
+
+https.get = function (params, cb) {
+  params = validateParams(params)
+  return http.get.call(this, params, cb)
+}
+
+function validateParams (params) {
+  if (typeof params === 'string') {
+    params = url.parse(params)
+  }
+  if (!params.protocol) {
+    params.protocol = 'https:'
+  }
+  if (params.protocol !== 'https:') {
+    throw new Error('Protocol "' + params.protocol + '" not supported. Expected "https:"')
+  }
+  return params
+}
 
 
 /***/ }),
@@ -35195,6 +36157,762 @@ Stream.prototype.pipe = function(dest, options) {
 
 /***/ }),
 
+/***/ "./node_modules/stream-http/index.js":
+/*!*******************************************!*\
+  !*** ./node_modules/stream-http/index.js ***!
+  \*******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(global) {var ClientRequest = __webpack_require__(/*! ./lib/request */ "./node_modules/stream-http/lib/request.js")
+var response = __webpack_require__(/*! ./lib/response */ "./node_modules/stream-http/lib/response.js")
+var extend = __webpack_require__(/*! xtend */ "./node_modules/xtend/immutable.js")
+var statusCodes = __webpack_require__(/*! builtin-status-codes */ "./node_modules/builtin-status-codes/browser.js")
+var url = __webpack_require__(/*! url */ "./node_modules/url/url.js")
+
+var http = exports
+
+http.request = function (opts, cb) {
+	if (typeof opts === 'string')
+		opts = url.parse(opts)
+	else
+		opts = extend(opts)
+
+	// Normally, the page is loaded from http or https, so not specifying a protocol
+	// will result in a (valid) protocol-relative url. However, this won't work if
+	// the protocol is something else, like 'file:'
+	var defaultProtocol = global.location.protocol.search(/^https?:$/) === -1 ? 'http:' : ''
+
+	var protocol = opts.protocol || defaultProtocol
+	var host = opts.hostname || opts.host
+	var port = opts.port
+	var path = opts.path || '/'
+
+	// Necessary for IPv6 addresses
+	if (host && host.indexOf(':') !== -1)
+		host = '[' + host + ']'
+
+	// This may be a relative url. The browser should always be able to interpret it correctly.
+	opts.url = (host ? (protocol + '//' + host) : '') + (port ? ':' + port : '') + path
+	opts.method = (opts.method || 'GET').toUpperCase()
+	opts.headers = opts.headers || {}
+
+	// Also valid opts.auth, opts.mode
+
+	var req = new ClientRequest(opts)
+	if (cb)
+		req.on('response', cb)
+	return req
+}
+
+http.get = function get (opts, cb) {
+	var req = http.request(opts, cb)
+	req.end()
+	return req
+}
+
+http.ClientRequest = ClientRequest
+http.IncomingMessage = response.IncomingMessage
+
+http.Agent = function () {}
+http.Agent.defaultMaxSockets = 4
+
+http.globalAgent = new http.Agent()
+
+http.STATUS_CODES = statusCodes
+
+http.METHODS = [
+	'CHECKOUT',
+	'CONNECT',
+	'COPY',
+	'DELETE',
+	'GET',
+	'HEAD',
+	'LOCK',
+	'M-SEARCH',
+	'MERGE',
+	'MKACTIVITY',
+	'MKCOL',
+	'MOVE',
+	'NOTIFY',
+	'OPTIONS',
+	'PATCH',
+	'POST',
+	'PROPFIND',
+	'PROPPATCH',
+	'PURGE',
+	'PUT',
+	'REPORT',
+	'SEARCH',
+	'SUBSCRIBE',
+	'TRACE',
+	'UNLOCK',
+	'UNSUBSCRIBE'
+]
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
+/***/ "./node_modules/stream-http/lib/capability.js":
+/*!****************************************************!*\
+  !*** ./node_modules/stream-http/lib/capability.js ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(global) {exports.fetch = isFunction(global.fetch) && isFunction(global.ReadableStream)
+
+exports.writableStream = isFunction(global.WritableStream)
+
+exports.abortController = isFunction(global.AbortController)
+
+exports.blobConstructor = false
+try {
+	new Blob([new ArrayBuffer(1)])
+	exports.blobConstructor = true
+} catch (e) {}
+
+// The xhr request to example.com may violate some restrictive CSP configurations,
+// so if we're running in a browser that supports `fetch`, avoid calling getXHR()
+// and assume support for certain features below.
+var xhr
+function getXHR () {
+	// Cache the xhr value
+	if (xhr !== undefined) return xhr
+
+	if (global.XMLHttpRequest) {
+		xhr = new global.XMLHttpRequest()
+		// If XDomainRequest is available (ie only, where xhr might not work
+		// cross domain), use the page location. Otherwise use example.com
+		// Note: this doesn't actually make an http request.
+		try {
+			xhr.open('GET', global.XDomainRequest ? '/' : 'https://example.com')
+		} catch(e) {
+			xhr = null
+		}
+	} else {
+		// Service workers don't have XHR
+		xhr = null
+	}
+	return xhr
+}
+
+function checkTypeSupport (type) {
+	var xhr = getXHR()
+	if (!xhr) return false
+	try {
+		xhr.responseType = type
+		return xhr.responseType === type
+	} catch (e) {}
+	return false
+}
+
+// For some strange reason, Safari 7.0 reports typeof global.ArrayBuffer === 'object'.
+// Safari 7.1 appears to have fixed this bug.
+var haveArrayBuffer = typeof global.ArrayBuffer !== 'undefined'
+var haveSlice = haveArrayBuffer && isFunction(global.ArrayBuffer.prototype.slice)
+
+// If fetch is supported, then arraybuffer will be supported too. Skip calling
+// checkTypeSupport(), since that calls getXHR().
+exports.arraybuffer = exports.fetch || (haveArrayBuffer && checkTypeSupport('arraybuffer'))
+
+// These next two tests unavoidably show warnings in Chrome. Since fetch will always
+// be used if it's available, just return false for these to avoid the warnings.
+exports.msstream = !exports.fetch && haveSlice && checkTypeSupport('ms-stream')
+exports.mozchunkedarraybuffer = !exports.fetch && haveArrayBuffer &&
+	checkTypeSupport('moz-chunked-arraybuffer')
+
+// If fetch is supported, then overrideMimeType will be supported too. Skip calling
+// getXHR().
+exports.overrideMimeType = exports.fetch || (getXHR() ? isFunction(getXHR().overrideMimeType) : false)
+
+exports.vbArray = isFunction(global.VBArray)
+
+function isFunction (value) {
+	return typeof value === 'function'
+}
+
+xhr = null // Help gc
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
+/***/ "./node_modules/stream-http/lib/request.js":
+/*!*************************************************!*\
+  !*** ./node_modules/stream-http/lib/request.js ***!
+  \*************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(Buffer, global, process) {var capability = __webpack_require__(/*! ./capability */ "./node_modules/stream-http/lib/capability.js")
+var inherits = __webpack_require__(/*! inherits */ "./node_modules/inherits/inherits_browser.js")
+var response = __webpack_require__(/*! ./response */ "./node_modules/stream-http/lib/response.js")
+var stream = __webpack_require__(/*! readable-stream */ "./node_modules/readable-stream/readable-browser.js")
+var toArrayBuffer = __webpack_require__(/*! to-arraybuffer */ "./node_modules/to-arraybuffer/index.js")
+
+var IncomingMessage = response.IncomingMessage
+var rStates = response.readyStates
+
+function decideMode (preferBinary, useFetch) {
+	if (capability.fetch && useFetch) {
+		return 'fetch'
+	} else if (capability.mozchunkedarraybuffer) {
+		return 'moz-chunked-arraybuffer'
+	} else if (capability.msstream) {
+		return 'ms-stream'
+	} else if (capability.arraybuffer && preferBinary) {
+		return 'arraybuffer'
+	} else if (capability.vbArray && preferBinary) {
+		return 'text:vbarray'
+	} else {
+		return 'text'
+	}
+}
+
+var ClientRequest = module.exports = function (opts) {
+	var self = this
+	stream.Writable.call(self)
+
+	self._opts = opts
+	self._body = []
+	self._headers = {}
+	if (opts.auth)
+		self.setHeader('Authorization', 'Basic ' + new Buffer(opts.auth).toString('base64'))
+	Object.keys(opts.headers).forEach(function (name) {
+		self.setHeader(name, opts.headers[name])
+	})
+
+	var preferBinary
+	var useFetch = true
+	if (opts.mode === 'disable-fetch' || ('requestTimeout' in opts && !capability.abortController)) {
+		// If the use of XHR should be preferred. Not typically needed.
+		useFetch = false
+		preferBinary = true
+	} else if (opts.mode === 'prefer-streaming') {
+		// If streaming is a high priority but binary compatibility and
+		// the accuracy of the 'content-type' header aren't
+		preferBinary = false
+	} else if (opts.mode === 'allow-wrong-content-type') {
+		// If streaming is more important than preserving the 'content-type' header
+		preferBinary = !capability.overrideMimeType
+	} else if (!opts.mode || opts.mode === 'default' || opts.mode === 'prefer-fast') {
+		// Use binary if text streaming may corrupt data or the content-type header, or for speed
+		preferBinary = true
+	} else {
+		throw new Error('Invalid value for opts.mode')
+	}
+	self._mode = decideMode(preferBinary, useFetch)
+	self._fetchTimer = null
+
+	self.on('finish', function () {
+		self._onFinish()
+	})
+}
+
+inherits(ClientRequest, stream.Writable)
+
+ClientRequest.prototype.setHeader = function (name, value) {
+	var self = this
+	var lowerName = name.toLowerCase()
+	// This check is not necessary, but it prevents warnings from browsers about setting unsafe
+	// headers. To be honest I'm not entirely sure hiding these warnings is a good thing, but
+	// http-browserify did it, so I will too.
+	if (unsafeHeaders.indexOf(lowerName) !== -1)
+		return
+
+	self._headers[lowerName] = {
+		name: name,
+		value: value
+	}
+}
+
+ClientRequest.prototype.getHeader = function (name) {
+	var header = this._headers[name.toLowerCase()]
+	if (header)
+		return header.value
+	return null
+}
+
+ClientRequest.prototype.removeHeader = function (name) {
+	var self = this
+	delete self._headers[name.toLowerCase()]
+}
+
+ClientRequest.prototype._onFinish = function () {
+	var self = this
+
+	if (self._destroyed)
+		return
+	var opts = self._opts
+
+	var headersObj = self._headers
+	var body = null
+	if (opts.method !== 'GET' && opts.method !== 'HEAD') {
+		if (capability.arraybuffer) {
+			body = toArrayBuffer(Buffer.concat(self._body))
+		} else if (capability.blobConstructor) {
+			body = new global.Blob(self._body.map(function (buffer) {
+				return toArrayBuffer(buffer)
+			}), {
+				type: (headersObj['content-type'] || {}).value || ''
+			})
+		} else {
+			// get utf8 string
+			body = Buffer.concat(self._body).toString()
+		}
+	}
+
+	// create flattened list of headers
+	var headersList = []
+	Object.keys(headersObj).forEach(function (keyName) {
+		var name = headersObj[keyName].name
+		var value = headersObj[keyName].value
+		if (Array.isArray(value)) {
+			value.forEach(function (v) {
+				headersList.push([name, v])
+			})
+		} else {
+			headersList.push([name, value])
+		}
+	})
+
+	if (self._mode === 'fetch') {
+		var signal = null
+		var fetchTimer = null
+		if (capability.abortController) {
+			var controller = new AbortController()
+			signal = controller.signal
+			self._fetchAbortController = controller
+
+			if ('requestTimeout' in opts && opts.requestTimeout !== 0) {
+				self._fetchTimer = global.setTimeout(function () {
+					self.emit('requestTimeout')
+					if (self._fetchAbortController)
+						self._fetchAbortController.abort()
+				}, opts.requestTimeout)
+			}
+		}
+
+		global.fetch(self._opts.url, {
+			method: self._opts.method,
+			headers: headersList,
+			body: body || undefined,
+			mode: 'cors',
+			credentials: opts.withCredentials ? 'include' : 'same-origin',
+			signal: signal
+		}).then(function (response) {
+			self._fetchResponse = response
+			self._connect()
+		}, function (reason) {
+			global.clearTimeout(self._fetchTimer)
+			if (!self._destroyed)
+				self.emit('error', reason)
+		})
+	} else {
+		var xhr = self._xhr = new global.XMLHttpRequest()
+		try {
+			xhr.open(self._opts.method, self._opts.url, true)
+		} catch (err) {
+			process.nextTick(function () {
+				self.emit('error', err)
+			})
+			return
+		}
+
+		// Can't set responseType on really old browsers
+		if ('responseType' in xhr)
+			xhr.responseType = self._mode.split(':')[0]
+
+		if ('withCredentials' in xhr)
+			xhr.withCredentials = !!opts.withCredentials
+
+		if (self._mode === 'text' && 'overrideMimeType' in xhr)
+			xhr.overrideMimeType('text/plain; charset=x-user-defined')
+
+		if ('requestTimeout' in opts) {
+			xhr.timeout = opts.requestTimeout
+			xhr.ontimeout = function () {
+				self.emit('requestTimeout')
+			}
+		}
+
+		headersList.forEach(function (header) {
+			xhr.setRequestHeader(header[0], header[1])
+		})
+
+		self._response = null
+		xhr.onreadystatechange = function () {
+			switch (xhr.readyState) {
+				case rStates.LOADING:
+				case rStates.DONE:
+					self._onXHRProgress()
+					break
+			}
+		}
+		// Necessary for streaming in Firefox, since xhr.response is ONLY defined
+		// in onprogress, not in onreadystatechange with xhr.readyState = 3
+		if (self._mode === 'moz-chunked-arraybuffer') {
+			xhr.onprogress = function () {
+				self._onXHRProgress()
+			}
+		}
+
+		xhr.onerror = function () {
+			if (self._destroyed)
+				return
+			self.emit('error', new Error('XHR error'))
+		}
+
+		try {
+			xhr.send(body)
+		} catch (err) {
+			process.nextTick(function () {
+				self.emit('error', err)
+			})
+			return
+		}
+	}
+}
+
+/**
+ * Checks if xhr.status is readable and non-zero, indicating no error.
+ * Even though the spec says it should be available in readyState 3,
+ * accessing it throws an exception in IE8
+ */
+function statusValid (xhr) {
+	try {
+		var status = xhr.status
+		return (status !== null && status !== 0)
+	} catch (e) {
+		return false
+	}
+}
+
+ClientRequest.prototype._onXHRProgress = function () {
+	var self = this
+
+	if (!statusValid(self._xhr) || self._destroyed)
+		return
+
+	if (!self._response)
+		self._connect()
+
+	self._response._onXHRProgress()
+}
+
+ClientRequest.prototype._connect = function () {
+	var self = this
+
+	if (self._destroyed)
+		return
+
+	self._response = new IncomingMessage(self._xhr, self._fetchResponse, self._mode, self._fetchTimer)
+	self._response.on('error', function(err) {
+		self.emit('error', err)
+	})
+
+	self.emit('response', self._response)
+}
+
+ClientRequest.prototype._write = function (chunk, encoding, cb) {
+	var self = this
+
+	self._body.push(chunk)
+	cb()
+}
+
+ClientRequest.prototype.abort = ClientRequest.prototype.destroy = function () {
+	var self = this
+	self._destroyed = true
+	global.clearTimeout(self._fetchTimer)
+	if (self._response)
+		self._response._destroyed = true
+	if (self._xhr)
+		self._xhr.abort()
+	else if (self._fetchAbortController)
+		self._fetchAbortController.abort()
+}
+
+ClientRequest.prototype.end = function (data, encoding, cb) {
+	var self = this
+	if (typeof data === 'function') {
+		cb = data
+		data = undefined
+	}
+
+	stream.Writable.prototype.end.call(self, data, encoding, cb)
+}
+
+ClientRequest.prototype.flushHeaders = function () {}
+ClientRequest.prototype.setTimeout = function () {}
+ClientRequest.prototype.setNoDelay = function () {}
+ClientRequest.prototype.setSocketKeepAlive = function () {}
+
+// Taken from http://www.w3.org/TR/XMLHttpRequest/#the-setrequestheader%28%29-method
+var unsafeHeaders = [
+	'accept-charset',
+	'accept-encoding',
+	'access-control-request-headers',
+	'access-control-request-method',
+	'connection',
+	'content-length',
+	'cookie',
+	'cookie2',
+	'date',
+	'dnt',
+	'expect',
+	'host',
+	'keep-alive',
+	'origin',
+	'referer',
+	'te',
+	'trailer',
+	'transfer-encoding',
+	'upgrade',
+	'via'
+]
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../node-libs-browser/node_modules/buffer/index.js */ "./node_modules/node-libs-browser/node_modules/buffer/index.js").Buffer, __webpack_require__(/*! ./../../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js"), __webpack_require__(/*! ./../../process/browser.js */ "./node_modules/process/browser.js")))
+
+/***/ }),
+
+/***/ "./node_modules/stream-http/lib/response.js":
+/*!**************************************************!*\
+  !*** ./node_modules/stream-http/lib/response.js ***!
+  \**************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(process, Buffer, global) {var capability = __webpack_require__(/*! ./capability */ "./node_modules/stream-http/lib/capability.js")
+var inherits = __webpack_require__(/*! inherits */ "./node_modules/inherits/inherits_browser.js")
+var stream = __webpack_require__(/*! readable-stream */ "./node_modules/readable-stream/readable-browser.js")
+
+var rStates = exports.readyStates = {
+	UNSENT: 0,
+	OPENED: 1,
+	HEADERS_RECEIVED: 2,
+	LOADING: 3,
+	DONE: 4
+}
+
+var IncomingMessage = exports.IncomingMessage = function (xhr, response, mode, fetchTimer) {
+	var self = this
+	stream.Readable.call(self)
+
+	self._mode = mode
+	self.headers = {}
+	self.rawHeaders = []
+	self.trailers = {}
+	self.rawTrailers = []
+
+	// Fake the 'close' event, but only once 'end' fires
+	self.on('end', function () {
+		// The nextTick is necessary to prevent the 'request' module from causing an infinite loop
+		process.nextTick(function () {
+			self.emit('close')
+		})
+	})
+
+	if (mode === 'fetch') {
+		self._fetchResponse = response
+
+		self.url = response.url
+		self.statusCode = response.status
+		self.statusMessage = response.statusText
+		
+		response.headers.forEach(function (header, key){
+			self.headers[key.toLowerCase()] = header
+			self.rawHeaders.push(key, header)
+		})
+
+		if (capability.writableStream) {
+			var writable = new WritableStream({
+				write: function (chunk) {
+					return new Promise(function (resolve, reject) {
+						if (self._destroyed) {
+							reject()
+						} else if(self.push(new Buffer(chunk))) {
+							resolve()
+						} else {
+							self._resumeFetch = resolve
+						}
+					})
+				},
+				close: function () {
+					global.clearTimeout(fetchTimer)
+					if (!self._destroyed)
+						self.push(null)
+				},
+				abort: function (err) {
+					if (!self._destroyed)
+						self.emit('error', err)
+				}
+			})
+
+			try {
+				response.body.pipeTo(writable).catch(function (err) {
+					global.clearTimeout(fetchTimer)
+					if (!self._destroyed)
+						self.emit('error', err)
+				})
+				return
+			} catch (e) {} // pipeTo method isn't defined. Can't find a better way to feature test this
+		}
+		// fallback for when writableStream or pipeTo aren't available
+		var reader = response.body.getReader()
+		function read () {
+			reader.read().then(function (result) {
+				if (self._destroyed)
+					return
+				if (result.done) {
+					global.clearTimeout(fetchTimer)
+					self.push(null)
+					return
+				}
+				self.push(new Buffer(result.value))
+				read()
+			}).catch(function (err) {
+				global.clearTimeout(fetchTimer)
+				if (!self._destroyed)
+					self.emit('error', err)
+			})
+		}
+		read()
+	} else {
+		self._xhr = xhr
+		self._pos = 0
+
+		self.url = xhr.responseURL
+		self.statusCode = xhr.status
+		self.statusMessage = xhr.statusText
+		var headers = xhr.getAllResponseHeaders().split(/\r?\n/)
+		headers.forEach(function (header) {
+			var matches = header.match(/^([^:]+):\s*(.*)/)
+			if (matches) {
+				var key = matches[1].toLowerCase()
+				if (key === 'set-cookie') {
+					if (self.headers[key] === undefined) {
+						self.headers[key] = []
+					}
+					self.headers[key].push(matches[2])
+				} else if (self.headers[key] !== undefined) {
+					self.headers[key] += ', ' + matches[2]
+				} else {
+					self.headers[key] = matches[2]
+				}
+				self.rawHeaders.push(matches[1], matches[2])
+			}
+		})
+
+		self._charset = 'x-user-defined'
+		if (!capability.overrideMimeType) {
+			var mimeType = self.rawHeaders['mime-type']
+			if (mimeType) {
+				var charsetMatch = mimeType.match(/;\s*charset=([^;])(;|$)/)
+				if (charsetMatch) {
+					self._charset = charsetMatch[1].toLowerCase()
+				}
+			}
+			if (!self._charset)
+				self._charset = 'utf-8' // best guess
+		}
+	}
+}
+
+inherits(IncomingMessage, stream.Readable)
+
+IncomingMessage.prototype._read = function () {
+	var self = this
+
+	var resolve = self._resumeFetch
+	if (resolve) {
+		self._resumeFetch = null
+		resolve()
+	}
+}
+
+IncomingMessage.prototype._onXHRProgress = function () {
+	var self = this
+
+	var xhr = self._xhr
+
+	var response = null
+	switch (self._mode) {
+		case 'text:vbarray': // For IE9
+			if (xhr.readyState !== rStates.DONE)
+				break
+			try {
+				// This fails in IE8
+				response = new global.VBArray(xhr.responseBody).toArray()
+			} catch (e) {}
+			if (response !== null) {
+				self.push(new Buffer(response))
+				break
+			}
+			// Falls through in IE8	
+		case 'text':
+			try { // This will fail when readyState = 3 in IE9. Switch mode and wait for readyState = 4
+				response = xhr.responseText
+			} catch (e) {
+				self._mode = 'text:vbarray'
+				break
+			}
+			if (response.length > self._pos) {
+				var newData = response.substr(self._pos)
+				if (self._charset === 'x-user-defined') {
+					var buffer = new Buffer(newData.length)
+					for (var i = 0; i < newData.length; i++)
+						buffer[i] = newData.charCodeAt(i) & 0xff
+
+					self.push(buffer)
+				} else {
+					self.push(newData, self._charset)
+				}
+				self._pos = response.length
+			}
+			break
+		case 'arraybuffer':
+			if (xhr.readyState !== rStates.DONE || !xhr.response)
+				break
+			response = xhr.response
+			self.push(new Buffer(new Uint8Array(response)))
+			break
+		case 'moz-chunked-arraybuffer': // take whole
+			response = xhr.response
+			if (xhr.readyState !== rStates.LOADING || !response)
+				break
+			self.push(new Buffer(new Uint8Array(response)))
+			break
+		case 'ms-stream':
+			response = xhr.response
+			if (xhr.readyState !== rStates.LOADING)
+				break
+			var reader = new global.MSStreamReader()
+			reader.onprogress = function () {
+				if (reader.result.byteLength > self._pos) {
+					self.push(new Buffer(new Uint8Array(reader.result.slice(self._pos))))
+					self._pos = reader.result.byteLength
+				}
+			}
+			reader.onload = function () {
+				self.push(null)
+			}
+			// reader.onerror = ??? // TODO: this
+			reader.readAsArrayBuffer(response)
+			break
+	}
+
+	// The ms-stream case handles end separately in reader.onload()
+	if (self._xhr.readyState === rStates.DONE && self._mode !== 'ms-stream') {
+		self.push(null)
+	}
+}
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../process/browser.js */ "./node_modules/process/browser.js"), __webpack_require__(/*! ./../../node-libs-browser/node_modules/buffer/index.js */ "./node_modules/node-libs-browser/node_modules/buffer/index.js").Buffer, __webpack_require__(/*! ./../../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
 /***/ "./node_modules/string_decoder/lib/string_decoder.js":
 /*!***********************************************************!*\
   !*** ./node_modules/string_decoder/lib/string_decoder.js ***!
@@ -35499,6 +37217,44 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
+
+/***/ }),
+
+/***/ "./node_modules/to-arraybuffer/index.js":
+/*!**********************************************!*\
+  !*** ./node_modules/to-arraybuffer/index.js ***!
+  \**********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var Buffer = __webpack_require__(/*! buffer */ "./node_modules/node-libs-browser/node_modules/buffer/index.js").Buffer
+
+module.exports = function (buf) {
+	// If the buffer is backed by a Uint8Array, a faster version will work
+	if (buf instanceof Uint8Array) {
+		// If the buffer isn't a subarray, return the underlying ArrayBuffer
+		if (buf.byteOffset === 0 && buf.byteLength === buf.buffer.byteLength) {
+			return buf.buffer
+		} else if (typeof buf.buffer.slice === 'function') {
+			// Otherwise we need to get a proper copy
+			return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+		}
+	}
+
+	if (Buffer.isBuffer(buf)) {
+		// This is the slow version that will work with any Buffer
+		// implementation (even in old browsers)
+		var arrayCopy = new Uint8Array(buf.length)
+		var len = buf.length
+		for (var i = 0; i < len; i++) {
+			arrayCopy[i] = buf[i]
+		}
+		return arrayCopy.buffer
+	} else {
+		throw new Error('Argument must be a Buffer')
+	}
+}
+
 
 /***/ }),
 
