@@ -18,6 +18,7 @@ const publicPath = path.resolve('./')
 
 console.log('# Beekeeper NodeAgent >', 'public path:', publicPath, '\n')
 
+/*
 //
 // Create a node-static server instance to serve the './public' folder
 //
@@ -28,6 +29,7 @@ require('http').createServer(function (request, response) {
         file.serve(request, response);
     }).resume();
 }).listen(process.env.PORT || 8080);
+*/
 
 console.log('# Beekeeper NodeAgent >', 'agent proc launched\n')
 

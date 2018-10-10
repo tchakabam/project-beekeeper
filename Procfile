@@ -1,1 +1,1 @@
-web: npm run start:node:prebuilt
+agent: npm run start:node:prebuilt
