@@ -6,7 +6,6 @@ declare var process: any
 
 require('./node-shims');
 
-const nodeStatic = require('node-static');
 const argv = require('yargs').argv;
 const path = require('path');
 
