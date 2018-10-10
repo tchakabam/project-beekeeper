@@ -42,15 +42,16 @@
     "http-server": "^0.11.1",
     "m3u8-parser": "^4.2.0",
     "node-http-xhr": "^1.3.4",
+    "node-static": "^0.7.11",
     "simple-peer": "^9.1.2",
     "ts-node": "^7.0.1",
     "typescript": "^2.9.1",
     "url-toolkit": "^2.1.6",
     "uuid": "^3.3.2",
+    "websocket": "^1.0.28",
     "wrtc": "^0.2.0",
     "xml-js": "^1.6.8",
-    "yargs": "^12.0.2",
-    "websocket": "^1.0.28"
+    "yargs": "^12.0.2"
   },
   "devDependencies": {
     "@types/debug": "^0.0.30",
