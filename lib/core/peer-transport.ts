@@ -33,8 +33,9 @@ export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTranspor
             return JSON.parse(utf8BytesToString(bytes));
             // BROKEN: doesn't work in Node, this does ^
             //return JSON.parse(new TextDecoder('utf-8').decode(data));
-        } catch {
-            throw new Error('Failed to decode message')
+        } catch(err) {
+            //console.error(err);
+            //throw new Error('Failed to decode message: ' + err.message)
         }
     }
     return null;
