@@ -2,6 +2,10 @@
 
 console.log('agent proc launched')
 
+// FIXME: https://stackoverflow.com/questions/31173738/typescript-getting-error-ts2304-cannot-find-name-require
+declare var require: any
+declare var process: any
+
 require('./node-shims');
 
 const argv = require('yargs').argv
