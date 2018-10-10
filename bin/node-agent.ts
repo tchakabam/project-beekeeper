@@ -13,23 +13,6 @@ import * as BeekeeprUniversalEngineNode from '../build/BeekeeprUniversalEngineNo
 
 const {BKAccessProxyEvents, Engine} = BeekeeprUniversalEngineNode;
 
-const publicPath = path.resolve('./')
-
-console.log('# Beekeeper NodeAgent >', 'public path:', publicPath, '\n')
-
-/*
-//
-// Create a node-static server instance to serve the './public' folder
-//
-const file = new nodeStatic.Server(publicPath);
-
-require('http').createServer(function (request, response) {
-    request.addListener('end', function () {
-        file.serve(request, response);
-    }).resume();
-}).listen(process.env.PORT || 8080);
-*/
-
 console.log('# Beekeeper NodeAgent >', 'agent proc launched\n')
 
 const engine = new Engine();

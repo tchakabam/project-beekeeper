@@ -2,6 +2,10 @@
 
 const nodeStatic = require('node-static');
 
+const publicPath = path.resolve('./')
+
+console.log('# Beekeeper NodeAgent >', 'public path:', publicPath, '\n')
+
 //
 // Create a node-static server instance to serve the './public' folder
 //
