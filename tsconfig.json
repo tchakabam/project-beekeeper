@@ -6,7 +6,6 @@
     "strict": false,
     "moduleResolution": "node",
     "declaration": true,
-    "outDir": "./dist",
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "strictNullChecks": false,

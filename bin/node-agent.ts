@@ -8,7 +8,9 @@ const argv = require('yargs').argv
 
 const WebSocketClient = require('websocket').client;
 
-import {Engine, BKAccessProxyEvents} from '../lib/universal-engine';
+import * as BeekeeprUniversalEngineNode from '../build/BeekeeprUniversalEngineNode.umd';
+
+const {BKAccessProxyEvents, Engine} = BeekeeprUniversalEngineNode;
 
 const engine = new Engine();
 

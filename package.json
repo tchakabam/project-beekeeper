@@ -8,19 +8,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "keywords": [
-    "p2p",
-    "peer-to-peer",
-    "hls",
-    "dash",
-    "webrtc",
-    "video",
-    "mse",
-    "player",
-    "torrent",
-    "bittorrent",
-    "webtorrent",
-    "hlsjs",
-    "shaka player"
+    "P2P",
+    "live",
+    "streaming"
   ],
   "scripts": {
     "build": "npm run webpack:build",
@@ -30,9 +20,9 @@
     "start:herd": "ts-node ./bin/agent-herd.ts",
     "test": "jest",
     "lint": "eslint --ext .ts --ext .js .",
-    "webpack:build": "rimraf ./dist && webpack --progress",
+    "webpack:build": "rimraf ./build && webpack --progress",
     "webpack:devserver": "webpack-dev-server --progress --port 8080",
-    "webpack:watch": "rimraf ./dist && webpack --progress --watch"
+    "webpack:watch": "rimraf ./build && webpack --progress --watch"
   },
   "repository": {
     "type": "git",
@@ -76,6 +66,7 @@
     "webpack": "^4.11.1",
     "webpack-cli": "^3.0.2",
     "webpack-dev-server": "^3.1.4",
+    "webpack-node-externals": "^1.7.2",
     "websocket": "^1.0.28"
   }
 }
