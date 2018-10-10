@@ -10,7 +10,7 @@ require('./node-shims');
 
 const argv = require('yargs').argv
 
-const WebSocketClient = require('websocket').client;
+//const WebSocketClient = require('websocket').client;
 
 import * as BeekeeprUniversalEngineNode from '../build/BeekeeprUniversalEngineNode.umd';
 
