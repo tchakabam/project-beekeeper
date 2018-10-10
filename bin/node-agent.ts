@@ -45,6 +45,6 @@ engine.getPlayhead().play();
 
 engine.setSource('https://zdf-msl4test.akamaized.net/hls/live/670887/zdf_ngp/df25d6b00fd1015db40b90a182f9f4fd/5.m3u8');
 
-//engine.start();
+engine.start();
 
 
