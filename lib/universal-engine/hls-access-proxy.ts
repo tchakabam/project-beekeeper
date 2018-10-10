@@ -61,6 +61,10 @@ export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-ch
         return this._mediaStreamConsumer.getBufferedRanges();
     }
 
+    getRequestedRanges(): TimeIntervalContainer {
+        return this._mediaStreamConsumer.getFetchTargetRanges();
+    }
+
     isLiveSource(): boolean {
         return this._mediaStreamConsumer.getMedia().isLive;
     }
