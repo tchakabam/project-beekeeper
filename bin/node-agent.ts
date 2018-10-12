@@ -19,7 +19,7 @@ engine.getProxy().on(BKAccessProxyEvents.PeerConnect, () => {
 });
 
 engine.getPlayhead().on('update', () => {
-    //console.log('time:', engine.getPlayhead().getCurrentTime());
+    console.log('time:', engine.getPlayhead().getCurrentTime());
 });
 
 engine.getPlayhead().play();
