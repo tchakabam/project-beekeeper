@@ -18,7 +18,7 @@ declare var __VERSION__: any;
 
 export const XMLHttpRequest = require('../../ext-mod/node-http-xhr/lib');
 
-if (global) {
+if (global && !(window as any).XMLHttpRequest) {
     (global as any).XMLHttpRequest = XMLHttpRequest;
 }
 
