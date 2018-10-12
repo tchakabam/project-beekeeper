@@ -15,7 +15,7 @@ import { StringlyTypedEventEmitter } from '../core/stringly-typed-event-emitter'
 const debug = Debug('bk:engine:universal:hls-access-proxy');
 
 const DEFAULT_PLAYHEAD_LOOK_AHEAD = 30;
-const DEFAULT_LIVE_DELAY = 6;
+const DEFAULT_LIVE_DELAY = 12;
 
 export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-change'> {
 
