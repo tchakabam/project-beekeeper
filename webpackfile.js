@@ -13,7 +13,7 @@ function makeConfig({libName, entry, mode, target}) {
             // Add `.ts` as a resolvable extension.
             extensions: ['.ts', '.js']
         },
-        externals: target === 'node' ? [nodeExternals()] : [/* put web externals here */],
+        externals: target === 'node' ? [nodeExternals()] : ['request'],
         module: {
             rules: [
                 // all files with a `.ts` extension will be handled by `ts-loader`
