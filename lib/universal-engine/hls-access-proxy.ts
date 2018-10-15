@@ -10,14 +10,14 @@ import { TimeInterval, TimeIntervalContainer } from '../../ext-mod/emliri-es-lib
 import { BK_IProxy } from '../core';
 import { BKResourceRequest } from '../core/bk-resource-request'; // TODO: move to core
 import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
-import { StringlyTypedEventEmitter } from '../core/stringly-typed-event-emitter';
+import { TypedEventEmitter } from '../core/stringly-typed-event-emitter';
 
 const debug = Debug('bk:engine:universal:hls-access-proxy');
 
 const DEFAULT_PLAYHEAD_LOOK_AHEAD = 30;
 const DEFAULT_LIVE_DELAY = 12;
 
-export class HlsAccessProxy extends StringlyTypedEventEmitter<'buffered-range-change'> {
+export class HlsAccessProxy extends TypedEventEmitter<'buffered-range-change'> {
 
     liveDelaySeconds: number = DEFAULT_LIVE_DELAY;
     playheadLookaheadSeconds = DEFAULT_PLAYHEAD_LOOK_AHEAD;

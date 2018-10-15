@@ -16,7 +16,7 @@
 
 import * as Debug from 'debug';
 
-import {StringlyTypedEventEmitter} from './stringly-typed-event-emitter';
+import {TypedEventEmitter} from './stringly-typed-event-emitter';
 import { detectSafari11_0 } from './detect-safari-11';
 
 import { IPeerTransport, PeerCommandType, PeerTransportCommand, decodeMediaPeerTransportCommand } from './peer-transport';
@@ -36,7 +36,7 @@ export type PeerInfo = {
     remoteAddress: string
 };
 
-export class Peer extends StringlyTypedEventEmitter<
+export class Peer extends TypedEventEmitter<
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |
     "resource-request" | "resource-absent" | "resource-fetched" | "resource-error" | "resource-timeout" |
@@ -64,7 +64,7 @@ export class Peer extends StringlyTypedEventEmitter<
 
         this._peerTransport.on('connect', () => this._onPeerConnect());
         this._peerTransport.on('close', () => this._onPeerClose());
-        this._peerTransport.on('error', (error: Error) => this.debug('peer error', this._id, error, this));
+        this._peerTransport.on('error', (error: Error) => this.debug('peer error', this._id, error));
         this._peerTransport.on('data', this._onPeerData.bind(this));
 
         this._id = _peerTransport.id;
@@ -86,7 +86,7 @@ export class Peer extends StringlyTypedEventEmitter<
     }
 
     public destroy(): void {
-        this.debug(`destroying local handle for remote peer (id='${this._id}') -> goodbye mate :)`);
+        this.debug(`destroying local handle for remote peer (id='${this._id}') -> ciao bella :)`);
         this._terminateSegmentRequest();
         this._peerTransport.destroy();
     }
@@ -211,7 +211,7 @@ export class Peer extends StringlyTypedEventEmitter<
                 offset += chunk.byteLength;
             }
 
-            this.debug('peer resource transfer done', this._id, segmentId, this);
+            this.debug('peer resource transfer done', this._id, segmentId);
             this._terminateSegmentRequest();
             this.emit('resource-fetched', this, segmentId, segmentData.buffer);
         } else if (this._downloadingSegment.bytesDownloaded > this._downloadingSegment.size) {
@@ -244,7 +244,7 @@ export class Peer extends StringlyTypedEventEmitter<
         }
 
         if (this._downloadingSegment) {
-            this.debug('peer segment download is interrupted by a command', this._id, this);
+            this.debug('peer segment download is interrupted by a command, peer-id:', this._id);
 
             const segmentId = this._downloadingSegment.id;
             this._terminateSegmentRequest();
@@ -252,7 +252,7 @@ export class Peer extends StringlyTypedEventEmitter<
             return;
         }
 
-        this.debug('peer receive command', this._id, command, this);
+        this.debug('peer receive command, peer-id:', this._id,'type:', command.type);
 
         switch (command.type) {
         case PeerCommandType.SegmentsMap:

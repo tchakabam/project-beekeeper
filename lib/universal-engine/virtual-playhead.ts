@@ -1,4 +1,4 @@
-import { StringlyTypedEventEmitter } from '../core/stringly-typed-event-emitter';
+import { TypedEventEmitter } from '../core/stringly-typed-event-emitter';
 import { TimeIntervalContainer } from '../../ext-mod/emliri-es-libs/rialto/lib/time-intervals';
 import { TimeScale } from '../../ext-mod/emliri-es-libs/rialto/lib/time-scale';
 
@@ -12,7 +12,7 @@ export const UPDATE_PERIOD_MS = 500;
 
 export type VirtualPlayheadUpdateCb = (playhead: VirtualPlayhead) => void;
 
-export class VirtualPlayhead extends StringlyTypedEventEmitter<'update'> {
+export class VirtualPlayhead extends TypedEventEmitter<'update'> {
 
     private _clockTime: number = 0;
     private _updateIntervalTimer: number = null;

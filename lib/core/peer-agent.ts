@@ -23,7 +23,7 @@ import * as Debug from 'debug';
 import {Client} from 'bittorrent-tracker';
 import {createHash} from 'crypto';
 
-import {StringlyTypedEventEmitter} from './stringly-typed-event-emitter';
+import {TypedEventEmitter} from './stringly-typed-event-emitter';
 import {Peer} from './peer';
 import { BKResource, BKResourceStatus, BKResourceMapData } from './bk-resource';
 import { PeerTransportFilterFactory, IPeerTransport } from './peer-transport';
@@ -53,12 +53,11 @@ export interface ITrackerClient  {
     destroy(): void;
 }
 
-export class PeerAgent extends StringlyTypedEventEmitter<
-    "peer-connected" | "peer-closed" | "peer-data-updated" |
-    "peer-request-received" | "peer-response-sent" |
-    "resource-fetched" | "resource-error" |
-    "bytes-downloaded" | "bytes-uploaded"
-    > {
+export class PeerAgent extends TypedEventEmitter
+    <"peer-connected" | "peer-closed" | "peer-data-updated" |
+     "peer-request-received" | "peer-response-sent" |
+     "resource-fetched" | "resource-error" |
+     "bytes-downloaded" | "bytes-uploaded"> {
 
     private _trackerClient: ITrackerClient | null = null;
     private _peers: Map<string, Peer> = new Map();
@@ -78,8 +77,8 @@ export class PeerAgent extends StringlyTypedEventEmitter<
             mediaPeerTransportFilterFactory: PeerTransportFilterFactory
             rtcConfig?: RTCConfiguration,
             }) {
-        super();
 
+        super();
 
         //const peerIdSource = (Date.now() + Math.random()).toFixed(12);
         // FIXED: using a real UUID is better at scale :)
@@ -249,10 +248,10 @@ export class PeerAgent extends StringlyTypedEventEmitter<
     }
 
     private _onTrackerPeer(trackerPeer: IPeerTransport): void {
-        this.debug('Peer added from tracker:', trackerPeer.id, trackerPeer);
+        this.debug('Peer connection received from tracker, peer-id:', trackerPeer.id);
 
         if (this._peers.has(trackerPeer.id)) {
-            this.debug('tracker peer already connected', trackerPeer.id, trackerPeer);
+            this.debug('Tracker peer already connected, peer-id:', trackerPeer.id);
             trackerPeer.destroy();
             return;
         }
@@ -293,7 +292,7 @@ export class PeerAgent extends StringlyTypedEventEmitter<
         const connectedPeer = this._peers.get(peer.id);
 
         if (connectedPeer) {
-            this.debug('tracker peer already connected (in peer connect)', peer.id, peer);
+            this.debug('tracker peer already connected (in peer connect)', peer.id);
             peer.destroy();
             return;
         }

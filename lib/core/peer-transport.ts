@@ -1,4 +1,4 @@
-import { StringlyTypedEventEmitter } from './stringly-typed-event-emitter';
+import { TypedEventEmitter } from './stringly-typed-event-emitter';
 
 import {NetworkChannelEmulator} from './network-channel-emulator';
 
@@ -60,7 +60,7 @@ export interface IPeerTransport {
 export type PeerTransportFilterFactory = (transport: IPeerTransport) => IPeerTransport;
 
 export class DefaultPeerTransportFilter
-    extends StringlyTypedEventEmitter<"connect" | "close" | "error" | "data">
+    extends TypedEventEmitter<"connect" | "close" | "error" | "data">
     implements IPeerTransport {
 
     private _netEmIn: NetworkChannelEmulator
@@ -89,9 +89,9 @@ export class DefaultPeerTransportFilter
 
     write(buffer: string | Buffer): void {
         if (typeof buffer === 'string') {
-            debug(`writing data to remote peer (id='${this.id}') with string: ${buffer}`);
+            debug(`writing utf8-data to remote peer (id='${this.id}'), byte-length is ${buffer.length}`);
         } else {
-            debug(`writing data to remote peer (id='${this.id}') with Buffer object, byte-length is ${buffer.byteLength}`);
+            debug(`writing binary-data to remote peer (id='${this.id}'), byte-length is ${buffer.byteLength}`);
         }
         this._netEmOut.push(buffer);
     }
