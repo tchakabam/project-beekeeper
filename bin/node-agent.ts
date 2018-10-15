@@ -19,7 +19,7 @@ var url;
 
 // url = 'https://wowzaprodhd25-lh.akamaihd.net/i/9e329736_1@364238/master.m3u8';
 
-url = 'http://wowza.peer5.com/live/smil:bbb_abr.smil/chunklist_w80478204_b2204000.m3u8';
+url = 'https://wowza.peer5.com/live/smil:bbb_abr.smil/chunklist_w80478204_b2204000.m3u8';
 
 //url = 'https://zdf-msl4test.akamaized.net/hls/live/670887/zdf_ngp/df25d6b00fd1015db40b90a182f9f4fd/5.m3u8';
 
