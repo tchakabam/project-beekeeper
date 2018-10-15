@@ -14,6 +14,7 @@
   ],
   "scripts": {
     "build": "npm run webpack:build",
+    "build:watch": "npm run webpack:watch",
     "build-deploy": "npm run build && npm run make-prebuilt",
     "make-prebuilt": "cp -R bin prebuilt-dist && cp -R build prebuilt-dist",
     "start": "npm run start:node",
