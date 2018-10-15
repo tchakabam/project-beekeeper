@@ -12,7 +12,6 @@ const {BKAccessProxyEvents, Engine} = BeekeeprUniversalEngineNode;
 
 console.log('# Beekeeper NodeAgent >', 'agent proc launched\n')
 
-
 var url;
 
 //url = 'https://video-dev.github.io/streams/x36xhzz/url_6/193039199_mp4_h264_aac_hq_7.m3u8';
@@ -30,7 +29,7 @@ engine.getProxy().on(BKAccessProxyEvents.PeerConnect, () => {
 });
 
 engine.getPlayhead().on('update', () => {
-    console.log('time:', engine.getPlayhead().getCurrentTime());
+    console.log('---> playhead clock-time:', engine.getPlayhead().getCurrentTime());
 });
 
 engine.getPlayhead().play();
