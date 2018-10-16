@@ -179,7 +179,6 @@ export class BKResourceTransferMonitorDomView {
         });
 
         p2pDownloadRatio = Math.round(100 * peerDownloadedBytes / (cdnDownloadedBytes + peerDownloadedBytes)) / 100;
-
         p2pUploadRatio = Math.round(100 * peerUploadedBytes / (cdnDownloadedBytes + peerDownloadedBytes)) / 100;
 
         return {
