@@ -16,7 +16,9 @@
     "build": "npm run webpack:build",
     "build:watch": "npm run webpack:watch",
     "build-deploy": "npm run build && npm run make-prebuilt",
+    "lint": "eslint --ext .ts --ext .js .",
     "make-prebuilt": "cp -R bin prebuilt-dist && cp -R build prebuilt-dist",
+    "postinstall": "git submodule update --init",
     "start": "npm run start:node",
     "start:webdev": "npm run webpack:devserver",
     "start:node": "DEBUG=bk:* ts-node ./bin/node-agent.ts",
@@ -24,7 +26,6 @@
     "start:herd": "ts-node ./bin/agent-herd.ts",
     "ts-node": "ts-node",
     "test": "jest",
-    "lint": "eslint --ext .ts --ext .js .",
     "webpack:build": "rimraf ./build && webpack --progress",
     "webpack:devserver": "webpack-dev-server --progress --port 8080",
     "webpack:watch": "rimraf ./build && webpack --progress --watch"
