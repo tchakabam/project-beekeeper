@@ -10,14 +10,14 @@ function makeConfig({libName, entry, mode, target}) {
         target: target || 'web',
         entry,
         resolve: {
-            // Add `.ts` as a resolvable extension.
-            extensions: ['.ts', '.js']
+            extensions: ['.js', '.ts', '.tsx']
         },
         externals: target === 'node' ? [nodeExternals()] : ['request'],
         module: {
             rules: [
-                // all files with a `.ts` extension will be handled by `ts-loader`
-                { test: /\.ts?$/, exclude: [/node_modules/], loader: 'ts-loader' },
+                //{ test: /\.js$/, exclude: [/node_modules/], loader: 'ts-loader' },
+                { test: /\.ts$/, exclude: [/node_modules/], loader: 'ts-loader' },
+                { test: /\.tsx$/, exclude: [/node_modules/], loader: 'ts-loader' },
             ]
         },
         output: {
@@ -38,6 +38,7 @@ function makeConfig({libName, entry, mode, target}) {
 
 module.exports = [
     makeConfig({libName: 'BeekeeprCore', entry: './lib/core/index', mode: 'development'}),
+    makeConfig({libName: 'BeekeeprMonitoring', entry: './lib/monitoring/index', mode: 'development'}),
     makeConfig({libName: 'BeekeeprUniversalEngine', entry: './lib/universal-engine/index', mode: 'development'}),
     makeConfig({libName: 'BeekeeprHlsjsLoader', entry: './lib/hlsjs-loader/index', mode: 'development'}),
     makeConfig({libName: 'BeekeeprUniversalEngineNode', entry: './lib/universal-engine/index', mode: 'development', target: 'node'})
