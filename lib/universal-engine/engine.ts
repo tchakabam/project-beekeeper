@@ -8,7 +8,6 @@ import { HlsAccessProxy } from './hls-access-proxy';
 
 import * as Debug from 'debug';
 import { VirtualPlayhead } from './virtual-playhead';
-import { BKResourceTransferMonitorDomView } from '../core/bk-resource-tx-monitor';
 import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
 
 const debug = Debug('bk:engine:universal:engine');
@@ -24,7 +23,6 @@ export class Engine {
     private _hlsProxy: HlsAccessProxy;
     private _playhead: VirtualPlayhead;
     private _gotEarliestRequestedRangeBuffered: boolean = false;
-    private _monitorDomView: BKResourceTransferMonitorDomView = null;
 
     public constructor(settings: BKOptAccessProxySettings = {}) {
         //super();
@@ -68,12 +66,6 @@ export class Engine {
 
             this._hlsProxy.updateFetchTargetRange(this._playhead.getCurrentTime());
         });
-
-        /**
-         * Monitoring view
-         */
-        this._monitorDomView = window && window.document ?
-            new BKResourceTransferMonitorDomView(this.getProxy(), 'root') : null;
     }
 
     public getProxy(): BK_IProxy{

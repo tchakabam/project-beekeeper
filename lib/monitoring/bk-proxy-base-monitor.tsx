@@ -5,42 +5,42 @@ import { BK_IProxy, BKAccessProxyEvents, BKResource } from "../core";
 import { Peer } from "../core/peer";
 import { Resource } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
 
-class BKResourceTransferView extends React.Component {
+type BKResourceTransferViewProps = {
+    isP2p: boolean
+    isUpload: boolean
+    resource: Resource
+    peer: Peer
+}
 
-    private _peer: Peer = null;
-    private _resource: Resource = null;
+class BKResourceTransferView extends React.Component<BKResourceTransferViewProps> {
 
-    readonly isUpload: boolean = false;
-    readonly isP2P: boolean = false;
-
-    constructor(props) {
+    constructor(props: BKResourceTransferViewProps) {
         super(props);
-
-        this.isP2P = props.isP2P;
-        this.isUpload = props.isUpload;
-
-        this._resource = props.resource;
-        this._peer = props.peer;
     }
 
     getTransmittedBytes(): number {
-        return this._resource.requestedBytesLoaded;
+        return this.props.resource.requestedBytesLoaded;
     }
 
     render(): React.ReactNode {
-        const loaded = this._resource.requestedBytesLoaded;
-        const total = this._resource.requestedBytesTotal;
+        const loaded = this.props.resource.requestedBytesLoaded;
+        const total = this.props.resource.requestedBytesTotal;
+        const txKbps = (8 * this.props.resource.requestedBytesLoaded
+            / this.props.resource.fetchLatency) / 1000;
 
         return(
             <div>
-                Direction: UPLOAD<br/>
-                <span>
-                    <label>URL:</label>${this._resource.getUrl()}</span>
-                    <br/>| <span><label>Peer</label>: ${ this._peer.id } / ${this._peer.remoteAddress}</span>
-                | <span>${ true ? 'P2P' : 'HTTP' }</span>
+                Direction: {this.props.isUpload ? 'UPLOAD' : 'DOWNLOAD'}<br/>
+                <span><label>URL:</label>{this.props.resource.getUrl()}</span><br/>
                 | <span>
-                    <label>Transferred (bytes):</label> {loaded} / {total}
-                </span>
+                    <label>Peer</label>:
+                    { this.props.peer ? this.props.peer.id : null }
+                    /
+                    { this.props.peer ? this.props.peer.remoteAddress : null}
+                  </span>
+                | <span>{ true ? 'P2P' : 'HTTP' }</span>
+                | <span><label>Transferred (bytes):</label> {loaded} / {total}</span>
+                | <span><label>Bitrate (kbits/sec): </label> {txKbps.toFixed(1)}</span>
             </div>
         );
     }
@@ -54,14 +54,16 @@ export type BKProxyBaseMonitorStats = {
     peerUploadedBytes: number
 }
 
-export class BKProxyBaseMonitor extends React.Component {
+export class BKProxyBaseMonitor extends React.Component<{
+    proxy: BK_IProxy
+}> {
 
     private _resourceTransfers: BKResourceTransferView[] = [];
     private _proxy: BK_IProxy = null;
 
-    static createReactDOM(elRootId) {
+    static renderDOM(elRootId, proxy: BK_IProxy) {
         ReactDOM.render(
-            <BKProxyBaseMonitor></BKProxyBaseMonitor>,
+            <BKProxyBaseMonitor proxy={proxy}></BKProxyBaseMonitor>,
             document.getElementById(elRootId)
         );
     }
@@ -73,28 +75,58 @@ export class BKProxyBaseMonitor extends React.Component {
         this._proxy = props.proxy;
 
         this._proxy.on(BKAccessProxyEvents.ResourceEnqueuedHttp, (res: BKResource) => {
-            this._addResourceDownload(res, false);
+            this._addResourceTransfer(res, false, false, null);
         });
 
         this._proxy.on(BKAccessProxyEvents.ResourceEnqueuedP2p, (res: BKResource) => {
-            this._addResourceDownload(res, true);
+            this._addResourceTransfer(res, false, true, null);
         });
 
         this._proxy.on(BKAccessProxyEvents.PeerResponseSent, (res: BKResource, peer: Peer) => {
-            this._addResourceUpload(res, peer);
+            this._addResourceTransfer(res, true, true, peer);
         });
     }
 
     render(): React.ReactNode {
-        return <div></div>
+        const stats = this._getOverallStats();
+        const resourceTxs = [];
+
+        this._resourceTransfers.forEach((resourceTransfer: BKResourceTransferView, index: number) => {
+            resourceTxs.push((
+                <li key={index}>
+                    <i>RESOURCE TX STATS</i>
+                    <p>
+                        <BKResourceTransferView key={index} {...resourceTransfer.props}></BKResourceTransferView>
+                    </p>
+                    <hr />
+                </li>
+            ));
+        });
+
+        return(
+            <div>
+                <label>Overall stats:</label>
+                <div>
+                    <pre>{ JSON.stringify(stats, null, 2)  }</pre>
+                </div>
+
+                <div>
+                    <ul>
+                        {resourceTxs}
+                    </ul>
+                </div>
+            </div>
+        );
     }
 
-    private _addResourceDownload(res: BKResource, isP2p: boolean) {
-
-    }
-
-    private _addResourceUpload(res: BKResource, peer: Peer) {
-
+    private _addResourceTransfer(resource: BKResource, isUpload: boolean, isP2p: boolean, peer: Peer) {
+        this._resourceTransfers.push(new BKResourceTransferView({
+            resource,
+            isP2p,
+            isUpload,
+            peer
+        }));
+        this.forceUpdate()
     }
 
     private _getOverallStats(): BKProxyBaseMonitorStats {
@@ -105,10 +137,10 @@ export class BKProxyBaseMonitor extends React.Component {
         let p2pUploadRatio = 0;
 
         this._resourceTransfers.forEach((resourceTx: BKResourceTransferView) => {
-            if (resourceTx.isUpload) {
+            if (resourceTx.props.isUpload) {
                 peerUploadedBytes += resourceTx.getTransmittedBytes()
             } else {
-                if (resourceTx.isP2P) {
+                if (resourceTx.props.isP2p) {
                     peerDownloadedBytes += resourceTx.getTransmittedBytes();
                 } else {
                     cdnDownloadedBytes += resourceTx.getTransmittedBytes();
