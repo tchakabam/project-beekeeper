@@ -3,7 +3,9 @@ import * as ReactDOM from "react-dom";
 
 import { BK_IProxy, BKAccessProxyEvents, BKResource } from "../core";
 import { Peer } from "../core/peer";
-import { Resource } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
+import { Resource, ResourceEvents } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
+
+const NULL_STRING = "<null>"
 
 export type BKResourceTransferViewProps = {
     isP2p: boolean
@@ -35,9 +37,9 @@ export class BKResourceTransferView extends React.Component<BKResourceTransferVi
                 <span><label>URL:</label>{this.props.resource.getUrl()}</span><br/>
                 | <span>
                     <label>Peer</label>:
-                    { this.props.peer ? this.props.peer.id : null }
+                    { this.props.peer ? this.props.peer.id : NULL_STRING }
                     /
-                    { this.props.peer ? this.props.peer.remoteAddress : null}
+                    { this.props.peer ? this.props.peer.remoteAddress : NULL_STRING }
                   </span>
                 | <span>{ this.props.isP2p ? 'P2P' : 'HTTP' }</span>
                 | <span><label>Transferred (bytes):</label> {loaded} / {total}</span>
@@ -55,12 +57,13 @@ export type BKProxyBaseMonitorStats = {
     peerUploadedBytes: number
 }
 
-export class BKProxyBaseMonitor extends React.Component<{
+export type  BKProxyBaseMonitorProps = {
     proxy: BK_IProxy
-}> {
+};
+
+export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps> {
 
     private _resourceTransfers: BKResourceTransferView[] = [];
-    private _proxy: BK_IProxy = null;
 
     static renderDOM(elRootId, proxy: BK_IProxy) {
         ReactDOM.render(
@@ -73,17 +76,15 @@ export class BKProxyBaseMonitor extends React.Component<{
 
         super(props);
 
-        this._proxy = props.proxy;
-
-        this._proxy.on(BKAccessProxyEvents.ResourceEnqueuedHttp, (res: BKResource) => {
+        this.props.proxy.on(BKAccessProxyEvents.ResourceEnqueuedHttp, (res: BKResource) => {
             this._addResourceTransfer(res, false, false, null);
         });
 
-        this._proxy.on(BKAccessProxyEvents.ResourceEnqueuedP2p, (res: BKResource) => {
+        this.props.proxy.on(BKAccessProxyEvents.ResourceEnqueuedP2p, (res: BKResource) => {
             this._addResourceTransfer(res, false, true, null);
         });
 
-        this._proxy.on(BKAccessProxyEvents.PeerResponseSent, (res: BKResource, peer: Peer) => {
+        this.props.proxy.on(BKAccessProxyEvents.PeerResponseSent, (res: BKResource, peer: Peer) => {
             this._addResourceTransfer(res, true, true, peer);
         });
     }
@@ -152,12 +153,19 @@ export class BKProxyBaseMonitor extends React.Component<{
     }
 
     private _addResourceTransfer(resource: BKResource, isUpload: boolean, isP2p: boolean, peer: Peer) {
+
+        resource.on(ResourceEvents.FETCH_PROGRESS, () => this.forceUpdate());
+        resource.on(ResourceEvents.FETCH_ABORTED, () => this.forceUpdate());
+        resource.on(ResourceEvents.FETCH_SUCCEEDED, () => this.forceUpdate());
+        resource.on(ResourceEvents.FETCH_ERRORED, () => this.forceUpdate());
+
         this._resourceTransfers.push(new BKResourceTransferView({
             resource,
             isP2p,
             isUpload,
             peer
         }));
-        this.forceUpdate()
+
+        this.forceUpdate();
     }
 }
