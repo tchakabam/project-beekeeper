@@ -15,7 +15,6 @@ export class BKHlsjsSession {
 
     constructor(url) {
         this._proxy = new BKAccessProxy();
-
         this._proxy.setSwarmId(getSwarmIdForVariantPlaylist(url));
 
         const trequest = 1000;
