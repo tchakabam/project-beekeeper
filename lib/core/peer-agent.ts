@@ -23,7 +23,7 @@ import * as Debug from 'debug';
 import {Client} from 'bittorrent-tracker';
 import {createHash} from 'crypto';
 
-import {TypedEventEmitter} from './stringly-typed-event-emitter';
+import {TypedEventEmitter} from './typed-event-emitter';
 import {Peer} from './peer';
 import { BKResource, BKResourceStatus, BKResourceMapData } from './bk-resource';
 import { PeerTransportFilterFactory, IPeerTransport } from './peer-transport';

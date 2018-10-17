@@ -1,4 +1,4 @@
-import { TypedEventEmitter } from '../core/stringly-typed-event-emitter';
+import { TypedEventEmitter } from '../core/typed-event-emitter';
 import { TimeIntervalContainer } from '../../ext-mod/emliri-es-libs/rialto/lib/time-intervals';
 import { TimeScale } from '../../ext-mod/emliri-es-libs/rialto/lib/time-scale';
 

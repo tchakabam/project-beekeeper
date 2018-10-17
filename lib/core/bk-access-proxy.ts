@@ -83,7 +83,6 @@ export const defaultSettings: BKAccessProxySettings = {
 };
 
 export enum BKAccessProxyEvents {
-
     ResourceRequested = 'resource:requested',
 
     ResourceEnqueuedHttp = 'resource:enqueued:http',

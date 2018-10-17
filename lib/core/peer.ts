@@ -16,7 +16,7 @@
 
 import * as Debug from 'debug';
 
-import {TypedEventEmitter} from './stringly-typed-event-emitter';
+import {TypedEventEmitter} from './typed-event-emitter';
 import { detectSafari11_0 } from './detect-safari-11';
 
 import { IPeerTransport, PeerCommandType, PeerTransportCommand, decodeMediaPeerTransportCommand } from './peer-transport';

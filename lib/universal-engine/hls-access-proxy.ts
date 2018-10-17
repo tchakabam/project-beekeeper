@@ -10,7 +10,7 @@ import { TimeInterval, TimeIntervalContainer } from '../../ext-mod/emliri-es-lib
 import { BK_IProxy } from '../core';
 import { BKResourceRequest } from '../core/bk-resource-request'; // TODO: move to core
 import { getSwarmIdForVariantPlaylist } from '../core/bk-swarm-id';
-import { TypedEventEmitter } from '../core/stringly-typed-event-emitter';
+import { TypedEventEmitter } from '../core/typed-event-emitter';
 
 const debug = Debug('bk:engine:universal:hls-access-proxy');
 

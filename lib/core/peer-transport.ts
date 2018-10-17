@@ -1,4 +1,4 @@
-import { TypedEventEmitter } from './stringly-typed-event-emitter';
+import { TypedEventEmitter } from './typed-event-emitter';
 
 import {NetworkChannelEmulator} from './network-channel-emulator';
 
