@@ -88,6 +88,10 @@ export class Engine {
         this._proxy.terminate();
     }
 
+    public getSource(): string {
+        return this._sourceUrl;
+    }
+
     public setSource(url: string) {
         if (this._sourceUrl) {
             throw new Error('Source URL already set');

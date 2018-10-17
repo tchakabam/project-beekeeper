@@ -4,6 +4,7 @@ import * as ReactDOM from "react-dom";
 import { BK_IProxy, BKAccessProxyEvents, BKResource } from "../core";
 import { Peer } from "../core/peer";
 import { Resource, ResourceEvents } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
+import { printObject } from "./print-object";
 
 const NULL_STRING = "<null>"
 
@@ -31,19 +32,21 @@ export class BKResourceTransferView extends React.Component<BKResourceTransferVi
             / this.props.resource.fetchLatency) / 1000;
 
         return(
-            <div>
+            <div className={"resource-tx " + (this.props.isUpload ? "resource-ul" : "resource-dl")}>
                 Direction: {this.props.isUpload ? 'UPLOAD' : 'DOWNLOAD'}
-                <br/>
-                <span><label>URL:</label>{this.props.resource.getUrl()}</span><br/>
-                | <span>
-                    <label>Peer</label>:
-                    { this.props.peer ? this.props.peer.id : NULL_STRING }
-                    /
-                    { this.props.peer ? this.props.peer.remoteAddress : NULL_STRING }
-                  </span>
-                | <span>{ this.props.isP2p ? 'P2P' : 'HTTP' }</span>
-                | <span><label>Transferred (bytes):</label> {loaded} / {total}</span>
-                | <span><label>Bitrate (kbits/sec): </label> {txKbps.toFixed(1)}</span>
+                <ul>
+                    <li><label>URL:&nbsp;</label>{this.props.resource.getUrl()}</li>
+                    <li>
+                        <label>Peer&nbsp;</label>:
+                        { this.props.peer ? this.props.peer.id : NULL_STRING }
+                        /
+                        { this.props.peer ? this.props.peer.remoteAddress : NULL_STRING }
+                    </li>
+                    <li><label>Mode:&nbsp;</label>{ this.props.isP2p ? 'P2P' : 'HTTP' }</li>
+                    <li><label>Transferred (bytes):&nbsp;</label>{loaded} / {total}</li>
+                    <li><label>Bitrate (kbits/sec):&nbsp;</label>{txKbps.toFixed(1)}</li>
+                </ul>
+
             </div>
         );
     }
@@ -96,10 +99,8 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
         this._resourceTransfers.forEach((resourceTransfer: BKResourceTransferView, index: number) => {
             resourceTxs.push((
                 <li key={index}>
-                    <i>RESOURCE TX STATS</i>
-                    <p>
-                        <BKResourceTransferView key={index} {...resourceTransfer.props}></BKResourceTransferView>
-                    </p>
+                    <i>Resource transmission:</i>
+                    <BKResourceTransferView key={index} {...resourceTransfer.props}></BKResourceTransferView>
                     <hr />
                 </li>
             ));
@@ -109,7 +110,7 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
             <div>
                 <label>Overall stats:</label>
                 <div>
-                    <pre>{ JSON.stringify(stats, null, 2)  }</pre>
+                    <pre>{ printObject(stats)  }</pre>
                 </div>
 
                 <div>
