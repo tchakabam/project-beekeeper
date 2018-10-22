@@ -22,7 +22,7 @@ function initHlsjsLoaderTestbench() {
 
     var session = window.hlsjsSession = new BeekeeprHlsjsLoader.BKHlsjsSession(url);
 
-    var hls = new Hls({
+    var hls = new BeekeeprHlsjsLoader.Hls({
         fLoader: session.getLoaderClass(),
         debug: true,
         liveSyncDurationCount: 10
@@ -61,6 +61,4 @@ function createMonitoringDOM(proxy) {
             getMediaClockTime: () => engine.getPlayhead().getCurrentTime(),
             eventEmitter: engine.getPlayhead(),
         });
-
-
 }
