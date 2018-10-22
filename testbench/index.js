@@ -9,7 +9,7 @@ var url = TEST_STREAMS[2];
 
 function checkSessionAlreadyCreated() {
     if (window.hlsjsSession || window.p2pMediaEngine) {
-        alert('There already is a session in this window.');
+        window.alert('There already is a session in this window.');
         throw new Error('Can not create another session in this window');
     }
 }

@@ -49,3 +49,6 @@ h4 {
     width: 12em !important;
 }
 
+#proxy-monitor-p2p-graph-root {
+    border: 1px solid gray;
+}
