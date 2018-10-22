@@ -9,7 +9,6 @@ import { BK_IProxy, BKAccessProxyEvents, BKResource } from "../core";
 import { Peer } from "../core/peer";
 import { Resource, ResourceEvents } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
 import { printObject } from "./print-object";
-import { func } from "prop-types";
 
 const NULL_STRING = "<null>"
 

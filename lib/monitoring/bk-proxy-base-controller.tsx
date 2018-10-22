@@ -1,10 +1,8 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 
-import { BK_IProxy, BKAccessProxyEvents } from "../core";
+import { BK_IProxy } from "../core";
 import { printObject } from "./print-object";
-
-import { Peer } from "../core/peer";
 
 export type BKProxyBaseControllerProps = {
     proxy: BK_IProxy,
