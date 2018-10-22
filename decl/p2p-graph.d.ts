@@ -17,7 +17,7 @@ declare module "p2p-graph" {
     add(peer: P2pGraphPeer);
     connect(id1: string, id2: string);
     disconnect(id: string);
-    areConnected(id1: string, id2: string);
+    areConnected(id1: string, id2: string): boolean;
     getLink(i1: string, id2: string);
     hasPeer(...ids: string[]): boolean;
     hasLink(id1: string, id2: string): boolean;
