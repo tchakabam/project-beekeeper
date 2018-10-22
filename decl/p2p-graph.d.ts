@@ -20,7 +20,7 @@ declare module "p2p-graph" {
     areConnected(id1: string, id2: string);
     getLink(i1: string, id2: string);
     hasPeer(...ids: string[]): boolean;
-    hasLink(id1: string, id2: string);
+    hasLink(id1: string, id2: string): boolean;
     remove(id: string);
     seed(id: string, isSeeding: boolean);
     rate(id1: string, id2: string, avgRate: number);

@@ -50,6 +50,7 @@ export class Peer extends TypedEventEmitter<
 
     private _downloadingSegmentId: string | null = null;
     private _downloadingSegment: PeerDataTransmission | null = null;
+
     private _segmentsMap: BKResourceMap = BKResourceMap.create();
     private _timer: number | null = null;
     private _isSafari11_0: boolean = false;
@@ -82,6 +83,9 @@ export class Peer extends TypedEventEmitter<
         return this.id.substr(0, 8) + '@' + this.remoteAddress;
     }
 
+    /**
+     * Used for serialization i.e monitoring/metrics
+     */
     public getInfo(): PeerInfo {
         return {
             id: this.id,
@@ -115,6 +119,7 @@ export class Peer extends TypedEventEmitter<
         });
 
         let bytesLeft = data.byteLength;
+
         while (bytesLeft > 0) {
             const bytesToSend
                 = (bytesLeft >= this.settings.webRtcMaxMessageSize

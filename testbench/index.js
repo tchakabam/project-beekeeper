@@ -20,6 +20,8 @@ function checkSessionAlreadyCreated() {
 function initHlsjsLoaderTestbench() {
     checkSessionAlreadyCreated();
 
+    document.getElementById('vid').style.display = 'inline-block';
+
     var session = window.hlsjsSession = new BeekeeprHlsjsLoader.BKHlsjsSession(url);
 
     var hls = new BeekeeprHlsjsLoader.Hls({
@@ -43,22 +45,26 @@ function initStandaloneUEAgentTestbench() {
 
     engine.setSource(url);
 
-    createMonitoringDOM(engine.getProxy());
+    createMonitoringDOM(engine.getProxy(), engine);
 }
 
-function createMonitoringDOM(proxy) {
+function createMonitoringDOM(proxy, engine) {
     BeekeeprMonitoring.BKProxyBaseMonitor
         .renderDOM("proxy-monitor-react-root", proxy);
 
     BeekeeprMonitoring.BKProxyBaseMonitor
         .createP2pGraph(document.querySelector('#proxy-monitor-p2p-graph-root'), proxy);
 
-    BeekeeprMonitoring.BKProxyBaseController
-        .renderDOM("proxy-controller-react-root", engine.getProxy(), {
+    // universal engine? // TODO: abstract that
+    if (engine) {
+        BeekeeprMonitoring.BKProxyBaseController
+        .renderDOM("proxy-controller-react-root", proxy, {
             play: () => engine.getPlayhead().play(),
             pause: () => engine.getPlayhead().pause(),
             start: () => engine.start(),
             getMediaClockTime: () => engine.getPlayhead().getCurrentTime(),
             eventEmitter: engine.getPlayhead(),
         });
+    }
+
 }

@@ -71,7 +71,7 @@ export class BKProxyBaseController extends React.Component<BKProxyBaseController
 
                 <p>
                     <label>Peer connections:&nbsp;</label>
-                    <textarea readOnly value={printObject(this.props.proxy.getPeerConnections())}></textarea>
+                    <textarea readOnly value={printObject(this.props.proxy.getPeerConnections().map((peer) => peer.getInfo()))}></textarea>
                 </p>
 
                 <p>

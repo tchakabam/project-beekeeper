@@ -9,6 +9,7 @@ import { BK_IProxy, BKAccessProxyEvents, BKResource } from "../core";
 import { Peer } from "../core/peer";
 import { Resource, ResourceEvents } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
 import { printObject } from "./print-object";
+import { func } from "prop-types";
 
 const NULL_STRING = "<null>"
 
@@ -76,7 +77,7 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
         );
     }
 
-    static createP2pGraph(elRoot: HTMLElement, proxy: BK_IProxy): P2pGraph {
+    static createP2pGraph(elRoot: HTMLElement, proxy: BK_IProxy): {graph: P2pGraph, updateInterval: number} {
         const g: P2pGraph = new P2pGraph(elRoot);
 
         const id = proxy.getPeerId();
@@ -87,21 +88,41 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
             name: proxy.getPeerId().substr(0, 8) + '@local'
         });
 
-        proxy.on(BKAccessProxyEvents.PeerConnect, (peer: Peer) => {
-            g.add({
-                me: false,
-                id: peer.id,
-                name: peer.getShortName()
+        proxy.on(BKAccessProxyEvents.PeerConnect, () => {
+            update();
+        })
+
+        proxy.on(BKAccessProxyEvents.PeerClose, () => {
+            update();
+        });
+
+        function update() {
+            const peers = proxy.getPeerConnections();
+
+            peers.forEach((peer) => {
+                if (!g.hasPeer(peer.id)) {
+                    g.add({
+                        me: false,
+                        id: peer.id,
+                        name: peer.getShortName()
+                    });
+                    g.connect(peer.id, id);
+                }
             });
-            g.connect(peer.id, id);
-        })
 
-        proxy.on(BKAccessProxyEvents.PeerClose, (peerId: string) => {
-            g.disconnect(peerId);
-            g.remove(peerId);
-        })
+            g.list().slice().forEach((gPeer) => { // we make a copy just to be sure we're not messing up internals
+                if (!gPeer.me && !peers.find((peer) => peer.id === gPeer.id)) {
+                    //
+                    //g.disconnect(gPeer.id); // FIXME: CRASHES
+                    g.remove(gPeer.id);
+                    //
+                }
+            })
+        }
 
-        return g;
+        const updateInterval = window.setInterval(update, 1000);
+
+        return {graph: g, updateInterval};
     }
 
     private _resourceTransfers: BKResourceTransferView[] = [];
@@ -129,7 +150,7 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
 
         this._resourceTransfers.forEach((resourceTransfer: BKResourceTransferView, index: number) => {
             resourceTxs.push((
-                <li>
+                <li key={index}>
                     <i>Resource transmission:</i>
                     <BKResourceTransferView key={index} {...resourceTransfer.props}></BKResourceTransferView>
                     <hr />
