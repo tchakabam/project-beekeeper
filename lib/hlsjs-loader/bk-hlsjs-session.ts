@@ -81,6 +81,10 @@ export class BKHlsjsSession {
         });
     }
 
+    getProxy(): BK_IProxy {
+        return this._proxy;
+    }
+
     getLoaderClass() {
         const self = this;
         const proxy = this._proxy;

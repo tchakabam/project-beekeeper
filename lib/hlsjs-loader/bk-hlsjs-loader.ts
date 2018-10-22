@@ -1,7 +1,5 @@
 import { HlsjsLoaderContext, HlsjsLoaderConfig, HlsjsLoaderCallbacks, HlsjsLoader } from "./hlsjs-loader-iface";
-import { BK_IProxy, BKResource, BKProxyEvents } from "../core";
-import { ByteRange } from "../../ext-mod/emliri-es-libs/rialto/lib/byte-range";
-import { utf8BytesToString } from "../../ext-mod/emliri-es-libs/rialto/lib/bytes-read-write";
+import { BK_IProxy } from "../core";
 
 export class BKHlsjsLoader implements HlsjsLoader {
     constructor(

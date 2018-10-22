@@ -312,7 +312,7 @@ export class PeerAgent extends TypedEventEmitter
             this._peerCandidates.delete(peer.id);
         }
 
-        this.emit('peer-connected', {id: peer.id, remoteAddress: peer.remoteAddress});
+        this.emit('peer-connected', peer);
     }
 
     private _onPeerClose = (peer: Peer) => {
@@ -399,7 +399,7 @@ export class PeerAgent extends TypedEventEmitter
         const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
         if (peerResourceRequest) {
             this._peerResourceTransfers.delete(segmentId);
-            this.emit('resource-error', peerResourceRequest.resource, description);
+            this.emit('resource-error', peer, peerResourceRequest.resource, description);
         }
     }
 

@@ -78,6 +78,10 @@ export class Peer extends TypedEventEmitter<
         return this._remoteAddress;
     }
 
+    public getShortName(): string {
+        return this.id.substr(0, 8) + '@' + this.remoteAddress;
+    }
+
     public getInfo(): PeerInfo {
         return {
             id: this.id,

@@ -1,3 +1,5 @@
+/*
+
 import { BKResourceRequest } from '../core/bk-resource-request';
 import { ResourceEvents } from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
 import { BKResource } from '../core';
@@ -208,3 +210,5 @@ export class BKResourceTransferMonitorDomView {
         this._domRootEl.appendChild(domify(html));
     }
 }
+
+*/

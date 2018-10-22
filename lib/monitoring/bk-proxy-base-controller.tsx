@@ -1,7 +1,10 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { BK_IProxy } from "../core";
+
+import { BK_IProxy, BKAccessProxyEvents } from "../core";
 import { printObject } from "./print-object";
+
+import { Peer } from "../core/peer";
 
 export type BKProxyBaseControllerProps = {
     proxy: BK_IProxy,
@@ -26,7 +29,7 @@ export class BKProxyBaseController extends React.Component<BKProxyBaseController
     constructor(props: BKProxyBaseControllerProps) {
         super(props);
 
-        props.controller.eventEmitter.on('update', () => this.forceUpdate())
+        props.controller.eventEmitter.on('update', () => this.forceUpdate());
     }
 
     onUrlChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -38,6 +41,7 @@ export class BKProxyBaseController extends React.Component<BKProxyBaseController
     }
 
     render(): React.ReactNode {
+
         return(
             <div className="controls">
                 <p>
@@ -86,6 +90,9 @@ export class BKProxyBaseController extends React.Component<BKProxyBaseController
                     <label>Max. Peer-Bandwidth (kbps):&nbsp;</label>
                     <input onChange={(e) => this.onPeerBwChange(e)} className="slider" type="range" min="256" max="16000" value="8000" />
                 </p>
+
+                <p className="p2p-graph-root"></p>
+
             </div>
         )
     }

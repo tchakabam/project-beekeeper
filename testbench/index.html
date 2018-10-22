@@ -1,0 +1,56 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <title>Project Beekeeper - Testbench</title>
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+        <link rel="stylesheet" href="./common-style.css">
+
+        <script>
+            localStorage.debug = 'bk:*'
+        </script>
+
+        <!--
+        <script src="/build/P2pMediaLoaderCore.umd.js"></script>
+        -->
+
+        <script src="../../../build/BeekeeprHlsjsLoader.umd.js"></script>
+        <script src="../build/BeekeeprUniversalEngine.umd.js"></script>
+        <script src="../build/BeekeeprMonitoring.umd.js"></script>
+
+
+        <script src="../ext-mod/hls.js/dist/hls.js"></script>
+    </head>
+
+    <body>
+        <h2>
+            project Beekeep&#8795;r | p2p media distribution
+        </h2>
+        <h3>
+            - standalone & hls.js peer-agents testbench -
+        </h3>
+
+        <h4>
+            <br><hr><br>
+            Choose to start:&nbsp;
+            <button onclick="initHlsjsLoaderTestbench()">Create Hls.js session</button>
+            &nbsp;|&nbsp;
+            <button onclick="initStandaloneUEAgentTestbench()">Create headless-agent</button>
+        </h4>
+
+        <div class="vid-container">
+            <video height="360" controls id="vid"></video>
+        </div>
+
+        <div class="root" id="proxy-monitor-p2p-graph-root"></div>
+
+        <div class="root" id="proxy-controller-react-root"></div>
+        <div class="root" id="proxy-monitor-react-root"></div>
+
+        <script src="./index.js">
+        </script>
+    </body>
+</html>

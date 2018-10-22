@@ -1,3 +1,7 @@
+/// <reference path="../../decl/p2p-graph.d.ts" />
+
+import P2pGraph = require("p2p-graph");
+
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 
@@ -46,7 +50,6 @@ export class BKResourceTransferView extends React.Component<BKResourceTransferVi
                     <li><label>Transferred (bytes):&nbsp;</label>{loaded} / {total}</li>
                     <li><label>Bitrate (kbits/sec):&nbsp;</label>{txKbps.toFixed(1)}</li>
                 </ul>
-
             </div>
         );
     }
@@ -66,14 +69,42 @@ export type  BKProxyBaseMonitorProps = {
 
 export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps> {
 
-    private _resourceTransfers: BKResourceTransferView[] = [];
-
     static renderDOM(elRootId, proxy: BK_IProxy) {
         ReactDOM.render(
             <BKProxyBaseMonitor proxy={proxy}></BKProxyBaseMonitor>,
             document.getElementById(elRootId)
         );
     }
+
+    static createP2pGraph(elRoot: HTMLElement, proxy: BK_IProxy): P2pGraph {
+        const g: P2pGraph = new P2pGraph(elRoot);
+
+        const id = proxy.getPeerId();
+
+        g.add({
+            me: true,
+            id,
+            name: proxy.getPeerId().substr(0, 8) + '@local'
+        });
+
+        proxy.on(BKAccessProxyEvents.PeerConnect, (peer: Peer) => {
+            g.add({
+                me: false,
+                id: peer.id,
+                name: peer.getShortName()
+            });
+            g.connect(peer.id, id);
+        })
+
+        proxy.on(BKAccessProxyEvents.PeerClose, (peerId: string) => {
+            g.disconnect(peerId);
+            g.remove(peerId);
+        })
+
+        return g;
+    }
+
+    private _resourceTransfers: BKResourceTransferView[] = [];
 
     constructor(props) {
 
@@ -98,7 +129,7 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
 
         this._resourceTransfers.forEach((resourceTransfer: BKResourceTransferView, index: number) => {
             resourceTxs.push((
-                <li key={index}>
+                <li>
                     <i>Resource transmission:</i>
                     <BKResourceTransferView key={index} {...resourceTransfer.props}></BKResourceTransferView>
                     <hr />
