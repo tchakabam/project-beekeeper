@@ -52,8 +52,7 @@ function createMonitoringDOM(proxy, engine) {
     BeekeeprMonitoring.BKProxyBaseMonitor
         .renderDOM("proxy-monitor-react-root", proxy);
 
-    BeekeeprMonitoring.BKProxyBaseMonitor
-        .createP2pGraph(document.querySelector('#proxy-monitor-p2p-graph-root'), proxy);
+    BeekeeprMonitoring.createP2pGraph(document.querySelector('#proxy-monitor-p2p-graph-root'), proxy);
 
     // universal engine? // TODO: abstract that
     if (engine) {

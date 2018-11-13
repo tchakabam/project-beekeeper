@@ -18,14 +18,14 @@ import * as Debug from 'debug';
 
 import {EventEmitter} from 'eventemitter3';
 import {HttpDownloadQueue} from './http-download-queue';
-import {PeerAgent} from './peer-agent';
+import {BKPeerAgent} from './peer-agent';
 import {BandwidthEstimator} from './bandwidth-estimator';
 import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from './peer-transport';
 
 import { BKResource, BKResourceMapData, BKResourceStatus } from './bk-resource';
 
 import { getPerfNow } from './perf-now';
-import { Peer } from './peer';
+import { BKPeer } from './peer';
 
 const getBrowserRtc = require('get-browser-rtc');
 
@@ -134,7 +134,7 @@ export interface BK_IProxy {
     getSwarmId();
     setSwarmId(swarmId: string);
     getPeerId(): string;
-    getPeerConnections(): Peer[];
+    getPeerConnections(): BKPeer[];
     getWRTCConfig(): RTCConfiguration;
     readonly settings: BKAccessProxySettings;
 }
@@ -150,7 +150,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     readonly settings: BKAccessProxySettings;
 
     private _httpDownloader: HttpDownloadQueue;
-    private _peerAgent: PeerAgent;
+    private _peerAgent: BKPeerAgent;
     private _storedSegments: Map<string, BKResource> = new Map();
     private _bandwidthEstimator = new BandwidthEstimator();
 
@@ -167,7 +167,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         //this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
 
-        this._peerAgent = new PeerAgent(this._storedSegments, this.settings);
+        this._peerAgent = new BKPeerAgent(this._storedSegments, this.settings);
 
         this._peerAgent.on('resource-fetched', this.onResourceLoaded.bind(this));
         this._peerAgent.on('resource-error', this.onResourceError.bind(this));
@@ -191,10 +191,16 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         if (this._peerAgent.enqueue(resource)) {
             this.debug('enqueued to p2p downloader');
+
+            resource.status = BKResourceStatus.LoadingViaP2p;
             this.emit(BKAccessProxyEvents.ResourceEnqueuedP2p, resource);
+
         } else {
             this.debug('falling back to http downloader');
+
             this._httpDownloader.enqueue(resource);
+
+            resource.status = BKResourceStatus.LoadingViaHttp;
             this.emit(BKAccessProxyEvents.ResourceEnqueuedHttp, resource);
         }
     }
@@ -219,7 +225,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         return this.settings.rtcConfig;
     }
 
-    public getPeerConnections(): Peer[] {
+    public getPeerConnections(): BKPeer[] {
         return this._peerAgent.getPeerConnections();
     }
 
@@ -262,8 +268,8 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
     }
 
-    private onResourceError (segment: BKResource, event: any) {
-        this.emit(BKAccessProxyEvents.ResourceError, segment, event);
+    private onResourceError (segment: BKResource, errorData: any) {
+        this.emit(BKAccessProxyEvents.ResourceError, segment, errorData);
     }
 
     private onPeerConnect (peer: {id: string}) {
@@ -279,7 +285,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.debug('peer data updated');
     }
 
-    private onPeerRequestReceived(resource: BKResource, peer: Peer) {
+    private onPeerRequestReceived(resource: BKResource, peer: BKPeer) {
         if (resource) {
             this.debug('peer request received resource', resource.id);
         } else {
@@ -288,7 +294,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this.emit(BKAccessProxyEvents.PeerRequestReceived, resource, peer);
     }
 
-    private onPeerResponseSent(resource: BKResource, peer: Peer) {
+    private onPeerResponseSent(resource: BKResource, peer: BKPeer) {
         if (resource) {
             this.debug('peer response sent for resource id:', resource.id);
         } else {

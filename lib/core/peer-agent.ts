@@ -24,7 +24,7 @@ import {Client} from 'bittorrent-tracker';
 import {createHash} from 'crypto';
 
 import {TypedEventEmitter} from './typed-event-emitter';
-import {Peer} from './peer';
+import {BKPeer} from './peer';
 import { BKResource, BKResourceStatus, BKResourceMapData } from './bk-resource';
 import { PeerTransportFilterFactory, IPeerTransport } from './peer-transport';
 import { getPerfNow } from './perf-now';
@@ -34,7 +34,7 @@ const PEER_PROTOCOL_VERSION = 1;
 declare var global: any;
 
 // implement actual IResourceRequest
-class PeerResourceTransfer {
+class BKPeerResourceTransfer {
 
     readonly createdAt;
 
@@ -53,16 +53,16 @@ export interface ITrackerClient  {
     destroy(): void;
 }
 
-export class PeerAgent extends TypedEventEmitter
+export class BKPeerAgent extends TypedEventEmitter
     <"peer-connected" | "peer-closed" | "peer-data-updated" |
      "peer-request-received" | "peer-response-sent" |
      "resource-fetched" | "resource-error" |
      "bytes-downloaded" | "bytes-uploaded"> {
 
     private _trackerClient: ITrackerClient | null = null;
-    private _peers: Map<string, Peer> = new Map();
-    private _peerCandidates: Map<string, Peer[]> = new Map();
-    private _peerResourceTransfers: Map<string, PeerResourceTransfer> = new Map();
+    private _peers: Map<string, BKPeer> = new Map();
+    private _peerCandidates: Map<string, BKPeer[]> = new Map();
+    private _peerResourceTransfers: Map<string, BKPeerResourceTransfer> = new Map();
     private _swarmId: string | null = null;
     private _peerId: string;
 
@@ -126,7 +126,7 @@ export class PeerAgent extends TypedEventEmitter
 
                 this._peerResourceTransfers.set(
                     resource.id,
-                    new PeerResourceTransfer(peer.id, resource)
+                    new BKPeerResourceTransfer(peer.id, resource)
                 );
 
                 peer.sendSegmentRequest(resource.id);
@@ -204,7 +204,7 @@ export class PeerAgent extends TypedEventEmitter
         this._createClient(createHash('sha1').update(PEER_PROTOCOL_VERSION + this._swarmId).digest('hex'));
     }
 
-    public getPeerConnections(): Peer[] {
+    public getPeerConnections(): BKPeer[] {
         return Array.from(this._peers.values());
     }
 
@@ -258,7 +258,7 @@ export class PeerAgent extends TypedEventEmitter
 
         const getTransportWrapper = this.settings.mediaPeerTransportFilterFactory;
         const mediaPeerTransport: IPeerTransport = getTransportWrapper(trackerPeer);
-        const peer = new Peer(mediaPeerTransport, this.settings);
+        const peer = new BKPeer(mediaPeerTransport, this.settings);
 
         peer.on('connect', this._onPeerConnect);
         peer.on('close', this._onPeerClose);
@@ -288,7 +288,7 @@ export class PeerAgent extends TypedEventEmitter
         this.emit('bytes-uploaded', bytes);
     }
 
-    private _onPeerConnect = (peer: Peer) => {
+    private _onPeerConnect = (peer: BKPeer) => {
         const connectedPeer = this._peers.get(peer.id);
 
         if (connectedPeer) {
@@ -315,7 +315,7 @@ export class PeerAgent extends TypedEventEmitter
         this.emit('peer-connected', peer);
     }
 
-    private _onPeerClose = (peer: Peer) => {
+    private _onPeerClose = (peer: BKPeer) => {
         if (this._peers.get(peer.id) != peer) {
             // Try to delete the peer candidate
 
@@ -351,7 +351,7 @@ export class PeerAgent extends TypedEventEmitter
         this.emit('peer-data-updated');
     }
 
-    private _onResourceRequest = (peer: Peer, resourceId: string) => {
+    private _onResourceRequest = (peer: BKPeer, resourceId: string) => {
         const resource: BKResource = this.cachedSegments.get(resourceId);
 
         this.emit('peer-request-received', resource, peer);
@@ -371,7 +371,7 @@ export class PeerAgent extends TypedEventEmitter
         this.emit('peer-response-sent', resource, peer);
     }
 
-    private _onResourceFetched = (peer: Peer, segmentId: string, data: ArrayBuffer) => {
+    private _onResourceFetched = (peer: BKPeer, segmentId: string, data: ArrayBuffer) => {
 
         this.debug(`resource "${segmentId}" loaded from peer (id=${peer.id})`);
 
@@ -390,12 +390,12 @@ export class PeerAgent extends TypedEventEmitter
         }
     }
 
-    private _onResourceAbsent = (peer: Peer, segmentId: string) => {
+    private _onResourceAbsent = (peer: BKPeer, segmentId: string) => {
         this._peerResourceTransfers.delete(segmentId);
         this.emit('peer-data-updated');
     }
 
-    private _onResourceError = (peer: Peer, segmentId: string, description: string) => {
+    private _onResourceError = (peer: BKPeer, segmentId: string, description: string) => {
         const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
         if (peerResourceRequest) {
             this._peerResourceTransfers.delete(segmentId);
@@ -403,7 +403,7 @@ export class PeerAgent extends TypedEventEmitter
         }
     }
 
-    private _onResourceTimeout = (peer: Peer, segmentId: string) => {
+    private _onResourceTimeout = (peer: BKPeer, segmentId: string) => {
         const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
         if (peerResourceRequest) {
             this._peerResourceTransfers.delete(segmentId);

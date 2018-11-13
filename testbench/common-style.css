@@ -37,11 +37,11 @@ h4 {
 }
 
 .resource-dl {
-    border: 1px solid green;
+    border: 1px solid lightseagreen
 }
 
 .resource-ul {
-    border: 1px solid red;
+    border: 1px solid lightsalmon
 }
 
 .slider {

@@ -36,7 +36,7 @@ export type PeerInfo = {
     remoteAddress: string
 };
 
-export class Peer extends TypedEventEmitter<
+export class BKPeer extends TypedEventEmitter<
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |
     "resource-request" | "resource-absent" | "resource-fetched" | "resource-error" | "resource-timeout" |

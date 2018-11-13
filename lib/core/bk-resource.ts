@@ -24,6 +24,13 @@ export class BKResource extends Resource {
     swarmId: string;
     status: BKResourceStatus = BKResourceStatus.Void;
 
+    //
+    /*
+    constructor(private status: BKResourceStatus) {
+        super()
+    }
+    */
+
     get id(): string { return this.uri; }
     get data(): ArrayBuffer { return this.buffer; }
 }

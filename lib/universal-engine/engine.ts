@@ -48,6 +48,7 @@ export class Engine {
                 const earliestRangeBuffered = this._hlsProxy.getBufferedRanges().getEarliestRange();
 
                 if (earliestRangeRequested && earliestRangeBuffered) {
+
                     if (earliestRangeBuffered.start === earliestRangeRequested.start) {
                         this._gotEarliestRequestedRangeBuffered = true;
                         this._playhead.setCurrentTime(earliestRangeBuffered.start);

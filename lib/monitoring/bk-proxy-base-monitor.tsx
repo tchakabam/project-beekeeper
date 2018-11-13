@@ -1,12 +1,8 @@
-/// <reference path="../../decl/p2p-graph.d.ts" />
-
-import P2pGraph = require("p2p-graph");
-
-import * as React from "react";
-import * as ReactDOM from "react-dom";
+import React = require("react");
+import ReactDOM = require("react-dom");
 
 import { BK_IProxy, BKAccessProxyEvents, BKResource } from "../core";
-import { Peer } from "../core/peer";
+import { BKPeer } from "../core/peer";
 import { Resource, ResourceEvents } from "../../ext-mod/emliri-es-libs/rialto/lib/resource";
 import { printObject } from "./print-object";
 
@@ -16,7 +12,7 @@ export type BKResourceTransferViewProps = {
     isP2p: boolean
     isUpload: boolean
     resource: Resource
-    peer: Peer
+    peer: BKPeer
 }
 
 export class BKResourceTransferView extends React.Component<BKResourceTransferViewProps> {
@@ -32,8 +28,14 @@ export class BKResourceTransferView extends React.Component<BKResourceTransferVi
     render(): React.ReactNode {
         const loaded = this.props.resource.requestedBytesLoaded;
         const total = this.props.resource.requestedBytesTotal;
-        const txKbps = (8 * this.props.resource.requestedBytesLoaded
-            / this.props.resource.fetchLatency) / 1000;
+
+        let txKbps = NaN;
+        if (this.props.isUpload) {
+            //txKbps =
+        } else {
+            txKbps = (8 * this.props.resource.requestedBytesLoaded
+                / this.props.resource.fetchLatency) / 1000;
+        }
 
         return(
             <div className={"resource-tx " + (this.props.isUpload ? "resource-ul" : "resource-dl")}>
@@ -76,60 +78,13 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
         );
     }
 
-    static createP2pGraph(elRoot: HTMLElement, proxy: BK_IProxy): {graph: P2pGraph, updateInterval: number} {
-        const g: P2pGraph = new P2pGraph(elRoot);
-
-        const id = proxy.getPeerId();
-
-        g.add({
-            me: true,
-            id,
-            name: proxy.getPeerId().substr(0, 8) + '@local'
-        });
-
-        proxy.on(BKAccessProxyEvents.PeerConnect, () => {
-            update();
-        })
-
-        proxy.on(BKAccessProxyEvents.PeerClose, () => {
-            update();
-        });
-
-        function update() {
-            const peers = proxy.getPeerConnections();
-
-            peers.forEach((peer) => {
-                if (!g.hasPeer(peer.id)) {
-                    g.add({
-                        me: false,
-                        id: peer.id,
-                        name: peer.getShortName()
-                    });
-                    g.connect(peer.id, id);
-                }
-            });
-
-            g.list().slice().forEach((gPeer) => { // we make a copy just to be sure we're not messing up internals
-                if (!gPeer.me && !peers.find((peer) => peer.id === gPeer.id)) {
-                    //
-                    //g.disconnect(gPeer.id); // FIXME: CRASHES
-                    g.remove(gPeer.id);
-                    //
-                }
-            })
-        }
-
-        const updateInterval = window.setInterval(update, 1000);
-
-        return {graph: g, updateInterval};
-    }
-
     private _resourceTransfers: BKResourceTransferView[] = [];
 
     constructor(props) {
 
         super(props);
 
+        // DOWNLOADS
         this.props.proxy.on(BKAccessProxyEvents.ResourceEnqueuedHttp, (res: BKResource) => {
             this._addResourceTransfer(res, false, false, null);
         });
@@ -138,7 +93,8 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
             this._addResourceTransfer(res, false, true, null);
         });
 
-        this.props.proxy.on(BKAccessProxyEvents.PeerResponseSent, (res: BKResource, peer: Peer) => {
+        // UPLOAD
+        this.props.proxy.on(BKAccessProxyEvents.PeerResponseSent, (res: BKResource, peer: BKPeer) => {
             this._addResourceTransfer(res, true, true, peer);
         });
     }
@@ -149,8 +105,8 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
 
         this._resourceTransfers.forEach((resourceTransfer: BKResourceTransferView, index: number) => {
             resourceTxs.push((
-                <li key={index}>
-                    <i>Resource transmission:</i>
+                <li key={index} style={{width: '80%'}}>
+                    <b>Resource transmission:</b>
                     <BKResourceTransferView key={index} {...resourceTransfer.props}></BKResourceTransferView>
                     <hr />
                 </li>
@@ -164,7 +120,13 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
                     <pre>{ printObject(stats)  }</pre>
                 </div>
 
-                <div>
+                <div style={{
+                        height: '400px',
+                        overflowY: 'scroll',
+                        border: '1px solid gray',
+                        paddingBottom: '1em',
+                        marginBottom: '2em',
+                    }}>
                     <ul>
                         {resourceTxs}
                     </ul>
@@ -204,7 +166,7 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
         }
     }
 
-    private _addResourceTransfer(resource: BKResource, isUpload: boolean, isP2p: boolean, peer: Peer) {
+    private _addResourceTransfer(resource: BKResource, isUpload: boolean, isP2p: boolean, peer: BKPeer) {
 
         resource.on(ResourceEvents.FETCH_PROGRESS, () => this.forceUpdate());
         resource.on(ResourceEvents.FETCH_ABORTED, () => this.forceUpdate());

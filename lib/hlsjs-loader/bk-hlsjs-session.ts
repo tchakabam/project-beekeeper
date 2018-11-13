@@ -48,7 +48,7 @@ export class BKHlsjsSession {
                 } else {
                     data = response.getArrayBuffer().slice(0);
                 }
-            } catch(err) { // PeerAgent doesn't support Rialot ResourceRequest iface fully so we have a workaround
+            } catch(err) { // PeerAgent doesn't support Rialto ResourceRequest iface fully so we have a workaround
                 if (url.endsWith('.vtt')) {
                     data = utf8BytesToString(new Uint8Array(res.buffer))
                 } else {
