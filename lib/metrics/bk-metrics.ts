@@ -1,9 +1,6 @@
 import * as Debug from 'debug';
 
-import { XHR, XHRMethod, XHRResponseType } from "../../ext-mod/emliri-es-libs/rialto/lib/xhr";
-import { BK_IProxy, BKAccessProxyEvents, BKResource } from '../core';
-import { BKPeer } from '../core/peer';
-import { BKResourceStatus, BKResourceTransportMode } from '../core/bk-resource';
+import { XHR } from "../../ext-mod/emliri-es-libs/rialto/lib/xhr";
 
 const debug = Debug('bk:metrics');
 
@@ -144,86 +141,17 @@ export class BKMetricsConsumer {
             throw new Error('Recorder should have returned metrics event');
         }
 
-        const xhrCallback = (xhr: XHR, isProgressUpdate: boolean) => {
+        const xhr = XHR.forJsonPost(this.endpointUrl, event);
 
-
-            if (xhr.isSuccess) {
-                debug('done sending metrics data');
-                this._consume();
-            } else if (xhr.hasErrored || xhr.isRequestError || xhr.isServerError) {
-                debug('request has errored:', xhr.error.message, 'with status:', xhr.status);
-                debug('error sending metrics data, re-enqueuing');
-
-                this.recorder.push(event);
-
-                this.stop();
-                //this._consume();
-            }
-        }
-
-        const xhr: XHR = new XHR(
-            this.endpointUrl,
-            xhrCallback,
-            XHRMethod.POST,
-            XHRResponseType.JSON,
-            null,
-            [["Content-Type", "application/json;charset=UTF-8"]],
-            JSON.stringify(event, null, 2)
-        );
-
-        //window.setTimeout(() => this._consume(), 0);
-    }
-}
-
-export class BKProxyMetricsConsumer extends BKMetricsConsumer {
-
-    constructor(private _proxy: BK_IProxy, contentUrl: string, metricsEndpointUrl: string) {
-
-        super(metricsEndpointUrl, new BKMetricsRecorder(_proxy.getPeerId(), contentUrl));
-
-        _proxy.on(BKAccessProxyEvents.ResourceFetched, (res: BKResource) => {
-
-            let eventType: BKMetricsEventType;
-            let data;
-
-            switch(res.transportMode) {
-            case BKResourceTransportMode.UNKNOWN:
-                throw new Error('Resource should not have unknown transport mode');
-            case BKResourceTransportMode.P2P:
-                let p2pData: BKMetricsPeerData = {
-                    remotePeerId: null,
-                    resourceId: res.uri,
-                    uploadRateKbps: 0,
-                    downloadRateKbps: res.getRecordedTransmissionRateBps() / 1000,
-                    numBytes: res.requestedBytesLoaded
-                }
-                eventType = BKMetricsEventType.PEER_DOWNLOAD_DONE;
-                data = p2pData;
-                break;
-            case BKResourceTransportMode.HTTP:
-                let cdnData: BKMetricsCDNData = {
-                    remoteHost: res.getUrl(),
-                    resourceId: res.uri,
-                    uploadRateKbps: 0,
-                    downloadRateKbps: res.getRecordedTransmissionRateBps() / 1000,
-                    numBytes: res.requestedBytesLoaded,
-                }
-                eventType = BKMetricsEventType.CDN_DOWNLOAD_DONE;
-                data = cdnData;
-                break;
-            }
-
-            this.recorder.capture(eventType, data);
+        xhr.whenReady.then(() => {
+            debug('done sending metrics data');
+            this._consume();
+        }).catch((err) => {
+            debug('request has errored:', err.message, 'with status:', xhr.status);
+            debug('error sending metrics data, re-enqueuing');
+            this.recorder.push(event);
+            this.stop();
         });
 
-        _proxy.on(BKAccessProxyEvents.ResourceError, (res: BKResource) => {
-
-
-
-        })
-
-        _proxy.on(BKAccessProxyEvents.PeerResponseSent, (res: BKResource, peer: BKPeer) => {
-
-        });
     }
 }
