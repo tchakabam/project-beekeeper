@@ -129,6 +129,9 @@ export class BKPeerAgent extends TypedEventEmitter
                     new BKPeerResourceTransfer(peer.id, resource)
                 );
 
+                resource.peerId = peer.id;
+                resource.peerShortName = peer.getShortName();
+
                 peer.sendSegmentRequest(resource.id);
 
                 return true;

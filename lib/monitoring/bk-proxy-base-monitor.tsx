@@ -12,7 +12,7 @@ export type BKResourceTransferViewProps = {
     isP2p: boolean
     isUpload: boolean
     resource: Resource
-    peer: BKPeer
+    peerName: string
 }
 
 export class BKResourceTransferView extends React.Component<BKResourceTransferViewProps> {
@@ -33,8 +33,7 @@ export class BKResourceTransferView extends React.Component<BKResourceTransferVi
         if (this.props.isUpload) {
             //txKbps =
         } else {
-            txKbps = (8 * this.props.resource.requestedBytesLoaded
-                / this.props.resource.fetchLatency) / 1000;
+            txKbps = this.props.resource.getRecordedTransmissionRateBps() / 1000;
         }
 
         return(
@@ -43,10 +42,8 @@ export class BKResourceTransferView extends React.Component<BKResourceTransferVi
                 <ul>
                     <li><label>URL:&nbsp;</label>{this.props.resource.getUrl()}</li>
                     <li>
-                        <label>Peer&nbsp;</label>:
-                        { this.props.peer ? this.props.peer.id : NULL_STRING }
-                        /
-                        { this.props.peer ? this.props.peer.remoteAddress : NULL_STRING }
+                        <label>Peer short-name:&nbsp;</label>
+                        { this.props.peerName ? this.props.peerName : NULL_STRING }
                     </li>
                     <li><label>Mode:&nbsp;</label>{ this.props.isP2p ? 'P2P' : 'HTTP' }</li>
                     <li><label>Transferred (bytes):&nbsp;</label>{loaded} / {total}</li>
@@ -177,7 +174,8 @@ export class BKProxyBaseMonitor extends React.Component<BKProxyBaseMonitorProps>
             resource,
             isP2p,
             isUpload,
-            peer
+            peerName: peer ? peer.getShortName() : resource.peerShortName // using the peer uploaded to,
+                                                                        // or the resource origin in case of download
         }));
 
         this.forceUpdate();

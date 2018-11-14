@@ -26,11 +26,18 @@ function initHlsjsLoaderTestbench() {
 
     var hls = new BeekeeprHlsjsLoader.Hls({
         fLoader: session.getLoaderClass(),
-        debug: true,
+        debug: false,
         liveSyncDurationCount: 10
     });
     hls.attachMedia(document.getElementById('vid'));
     hls.loadSource(url);
+
+    const metricsConsumer = new BeekeeprMonitoring.BKProxyMetricsConsumer(
+        session.getProxy(),
+        url,
+        '//metrics-rinkeby.livepeer.org/api/p2pevents');
+
+    metricsConsumer.start();
 
     createMonitoringDOM(session.getProxy());
 }

@@ -1,4 +1,5 @@
 import { Resource } from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
+import { BKPeer } from './peer';
 
 export type BKResourceMapData = Array<[string, BKResourceStatus]>;
 
@@ -18,18 +19,20 @@ export enum BKResourceStatus {
     LoadingViaHttp = 'loading_via_http'
 }
 
+export enum BKResourceTransportMode {
+    UNKNOWN = 'unknown',
+    P2P = 'p2p',
+    HTTP = 'http'
+}
+
 export class BKResource extends Resource {
 
     lastAccessedAt = 0;
     swarmId: string;
     status: BKResourceStatus = BKResourceStatus.Void;
-
-    //
-    /*
-    constructor(private status: BKResourceStatus) {
-        super()
-    }
-    */
+    transportMode: BKResourceTransportMode = BKResourceTransportMode.UNKNOWN;
+    peerId: string;
+    peerShortName: string;
 
     get id(): string { return this.uri; }
     get data(): ArrayBuffer { return this.buffer; }

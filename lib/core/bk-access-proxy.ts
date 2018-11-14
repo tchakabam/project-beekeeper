@@ -22,7 +22,7 @@ import {BKPeerAgent} from './peer-agent';
 import {BandwidthEstimator} from './bandwidth-estimator';
 import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from './peer-transport';
 
-import { BKResource, BKResourceMapData, BKResourceStatus } from './bk-resource';
+import { BKResource, BKResourceMapData, BKResourceStatus, BKResourceTransportMode } from './bk-resource';
 
 import { getPerfNow } from './perf-now';
 import { BKPeer } from './peer';
@@ -192,7 +192,8 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         if (this._peerAgent.enqueue(resource)) {
             this.debug('enqueued to p2p downloader');
 
-            resource.status = BKResourceStatus.LoadingViaP2p;
+            //resource.status = BKResourceStatus.LoadingViaP2p;
+            resource.transportMode = BKResourceTransportMode.P2P;
             this.emit(BKAccessProxyEvents.ResourceEnqueuedP2p, resource);
 
         } else {
@@ -200,7 +201,8 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
             this._httpDownloader.enqueue(resource);
 
-            resource.status = BKResourceStatus.LoadingViaHttp;
+            resource.transportMode = BKResourceTransportMode.HTTP;
+            //resource.status = BKResourceStatus.LoadingViaHttp;
             this.emit(BKAccessProxyEvents.ResourceEnqueuedHttp, resource);
         }
     }
