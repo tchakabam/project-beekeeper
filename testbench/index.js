@@ -48,7 +48,7 @@ function initHlsjsLoaderTestbench() {
 function initStandaloneUEAgentTestbench() {
     checkSessionAlreadyCreated();
 
-    var engine = window.p2pMediaEngine = engine = new BeekeeprUniversalEngine.Engine();
+    var engine = window.p2pMediaEngine = engine = new BeekeeprHeadlessAgent.Engine();
 
     engine.setSource(url);
 
@@ -61,7 +61,7 @@ function createMonitoringDOM(proxy, engine) {
 
     BeekeeprMonitoring.createP2pGraph(document.querySelector('#proxy-monitor-p2p-graph-root'), proxy);
 
-    // universal engine? // TODO: abstract that
+    // engine? // TODO: abstract that
     if (engine) {
         BeekeeprMonitoring.BKProxyBaseController
         .renderDOM("proxy-controller-react-root", proxy, {

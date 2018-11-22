@@ -29,7 +29,7 @@
     "start:webdev": "npm run webpack:devserver",
     "start:node": "DEBUG=bk:* ts-node ./bin/node-agent.ts",
     "start:node:prebuilt": "DEBUG=bk:* ts-node ./prebuilt-dist/bin/node-agent.ts",
-    "start:herd": "ts-node ./bin/agent-herd.ts",
+    "start:herd": "ts-node ./bin/node-agent-herd.ts",
     "test": "jest",
     "webpack:build": "rimraf ./build && webpack --progress",
     "webpack:devserver": "webpack-dev-server --progress --port 8084",
