@@ -16,6 +16,11 @@
         <script src="/build/P2pMediaLoaderCore.umd.js"></script>
         -->
 
+        <!-- we only load this for some util functions, the modules below ship with their core deps built-in -->
+        <script src="../build/BeekeeprCore.umd.js"></script>
+
+        <!-- thse modules are already linking in all their deps and each is "standalone" in principle -->
+        <!-- that makes them a bit more redundant in size but makes dealing with them much simpler -->
         <script src="../build/BeekeeprHlsjsLoader.umd.js"></script>
         <script src="../build/BeekeeprHeadlessAgent.umd.js"></script>
         <script src="../build/BeekeeprMonitoring.umd.js"></script>

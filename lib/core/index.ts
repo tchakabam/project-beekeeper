@@ -33,6 +33,8 @@ export {
 
 export {BKResource} from './bk-resource';
 
+export * from './utils';
+
 export const version =  !global ? __VERSION__ : '';
 
 
