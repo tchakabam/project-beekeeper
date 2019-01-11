@@ -20,12 +20,14 @@ import {EventEmitter} from 'eventemitter3';
 import {HttpDownloadQueue} from './http-download-queue';
 import {BKPeerAgent} from './peer-agent';
 import {BandwidthEstimator} from './bandwidth-estimator';
+
 import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from './peer-transport';
 
-import { BKResource, BKResourceMapData, BKResourceStatus, BKResourceTransportMode } from './bk-resource';
+import { BKResource, BKResourceTransportMode } from './bk-resource';
 
 import { getPerfNow } from './perf-now';
 import { BKPeer } from './peer';
+import { BKResourceMapData, createBKResourceState } from './bk-resource-map';
 
 const getBrowserRtc = require('get-browser-rtc');
 
@@ -43,9 +45,9 @@ export type BKAccessProxySettings = {
     webRtcMaxMessageSize: number;
 
     /**
-     * Timeout to download a segment from a peer. If exceeded the peer is dropped.
+     * Timeout to download a resource from a peer. If exceeded the peer is dropped.
      */
-    p2pSegmentDownloadTimeout: number;
+    p2pResourceTransmissionTimeout: number;
 
     /**
      * Torrent trackers (announcers) to use.
@@ -72,7 +74,7 @@ export const defaultSettings: BKAccessProxySettings = {
 
     webRtcMaxMessageSize: 64 * 1024 - 1, // 64Kbytes (why the -1 ?)
 
-    p2pSegmentDownloadTimeout: 60000,
+    p2pResourceTransmissionTimeout: 60000,
 
     trackerAnnounce: trackerDefaultAnounce,
 
@@ -90,20 +92,20 @@ export enum BKAccessProxyEvents {
     ResourceEnqueuedP2p = 'resource:enqueued:p2p',
 
     /**
-     * Emitted when segment has been downloaded.
-     * Args: segment
+     * Emitted when resource has been downloaded.
+     * Args: resource
      */
     ResourceFetched = 'resource:fetched',
 
     /**
-     * Emitted when an error occurred while loading the segment.
-     * Args: segment, error
+     * Emitted when an error occurred while loading the resource.
+     * Args: resource, error
      */
     ResourceError = 'resource:error',
 
     /**
-     * Emitted for each segment that does not hit into a new segments queue when the load() method is called.
-     * Args: segment
+     * Emitted for each resource that does not hit into a new resources queue when the load() method is called.
+     * Args: resource
      */
     ResourceAbort = 'resource:abort',
 
@@ -151,7 +153,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
     private _httpDownloader: HttpDownloadQueue;
     private _peerAgent: BKPeerAgent;
-    private _storedSegments: Map<string, BKResource> = new Map();
+    private _storedResources: Map<string, BKResource> = new Map();
     private _bandwidthEstimator = new BandwidthEstimator();
 
     public constructor(settings: Partial<BKAccessProxySettings> = {}) {
@@ -167,7 +169,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         //this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
 
-        this._peerAgent = new BKPeerAgent(this._storedSegments, this.settings);
+        this._peerAgent = new BKPeerAgent(this._storedResources, this.settings);
 
         this._peerAgent.on('resource-fetched', this.onResourceLoaded.bind(this));
         this._peerAgent.on('resource-error', this.onResourceError.bind(this));
@@ -234,14 +236,25 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     public terminate(): void {
         this._httpDownloader.destroy();
         this._peerAgent.destroy();
-        this._storedSegments.clear();
+        this._storedResources.clear();
     }
 
-    private _createSegmentsMap(): BKResourceMapData {
-        const segmentsMap: BKResourceMapData = [];
-        this._storedSegments.forEach((res) => segmentsMap.push([res.id, BKResourceStatus.Loaded]));
-        this._httpDownloader.getQueuedList().forEach((res: BKResource) => segmentsMap.push([res.id, BKResourceStatus.LoadingViaHttp]));
-        return segmentsMap;
+    private _createResourcesMap(): BKResourceMapData {
+        const resourcesMap: BKResourceMapData = [];
+
+        this._storedResources.forEach((res: BKResource) => {
+            resourcesMap.push(
+                [res.id, createBKResourceState(res.requestedBytesLoaded, res.requestedBytesTotal)]
+            );
+        });
+
+        this._httpDownloader.getQueuedList().forEach((res: BKResource) => {
+            resourcesMap.push(
+                [res.id, createBKResourceState(res.requestedBytesLoaded, res.requestedBytesTotal)]
+            );
+        });
+
+        return resourcesMap;
     }
 
     // Event handlers
@@ -254,28 +267,28 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         this._bandwidthEstimator.addBytes(bytes, getPerfNow());
     }
 
-    private onResourceLoaded (segment: BKResource) {
-        this.debug('resource loaded', segment.id, segment.data);
+    private onResourceLoaded (resource: BKResource) {
+        this.debug('resource loaded', resource.id, resource.data);
 
-        if (!segment.data || segment.data.byteLength === 0) {
+        if (!resource.data || resource.data.byteLength === 0) {
             throw new Error('No data in resource loaded')
         }
 
-        this._storedSegments.set(segment.id, segment);
+        this._storedResources.set(resource.id, resource);
 
-        segment.lastAccessedAt = getPerfNow();
+        resource.lastAccessedAt = getPerfNow();
 
-        this.emit(BKAccessProxyEvents.ResourceFetched, segment);
+        this.emit(BKAccessProxyEvents.ResourceFetched, resource);
 
-        this._peerAgent.sendSegmentsMapToAll(this._createSegmentsMap());
+        this._peerAgent.sendResourcesMapToAll(this._createResourcesMap());
     }
 
-    private onResourceError (segment: BKResource, errorData: any) {
-        this.emit(BKAccessProxyEvents.ResourceError, segment, errorData);
+    private onResourceError (resource: BKResource, errorData: any) {
+        this.emit(BKAccessProxyEvents.ResourceError, resource, errorData);
     }
 
     private onPeerConnect (peer: {id: string}) {
-        this._peerAgent.sendSegmentsMap(peer.id, this._createSegmentsMap());
+        this._peerAgent.sendResourcesMap(peer.id, this._createResourcesMap());
         this.emit(BKAccessProxyEvents.PeerConnect, peer);
     }
 

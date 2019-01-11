@@ -86,8 +86,6 @@ export class HttpDownloadQueue {
 
         this._fetching = true;
         nextResource.fetch().then((res: Resource) => {
-            console.log('segment-loaded')
-            //debug('segment-loaded');
             this._onLoaded(res);
             this._fetchNext();
         }).catch((err: any) => {

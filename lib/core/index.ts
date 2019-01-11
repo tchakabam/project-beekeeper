@@ -33,7 +33,7 @@ export {
 
 export {BKResource} from './bk-resource';
 
-export * from './utils';
+export {parseOptionsFromQueryString} from './browser-query-string';
 
 export const version =  !global ? __VERSION__ : '';
 

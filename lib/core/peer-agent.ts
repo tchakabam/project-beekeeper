@@ -24,10 +24,11 @@ import {Client} from 'bittorrent-tracker';
 import {createHash} from 'crypto';
 
 import {TypedEventEmitter} from './typed-event-emitter';
-import {BKPeer} from './peer';
-import { BKResource, BKResourceStatus, BKResourceMapData } from './bk-resource';
+import { BKPeer } from './peer';
+import { BKResource } from './bk-resource';
 import { PeerTransportFilterFactory, IPeerTransport } from './peer-transport';
 import { getPerfNow } from './perf-now';
+import { BKResourceMapData, BKResourceState, checkBKResourceStateLoaded } from './bk-resource-map';
 
 const PEER_PROTOCOL_VERSION = 1;
 
@@ -69,10 +70,10 @@ export class BKPeerAgent extends TypedEventEmitter
     private debug = Debug('bk:core:peer-agent');
 
     public constructor(
-            private readonly cachedSegments: Map<string, BKResource>,
+            private readonly cachedResources: Map<string, BKResource>,
             readonly settings: {
             trackerAnnounce: string[],
-            p2pSegmentDownloadTimeout: number,
+            p2pResourceTransmissionTimeout: number,
             webRtcMaxMessageSize: number,
             mediaPeerTransportFilterFactory: PeerTransportFilterFactory
             rtcConfig?: RTCConfiguration,
@@ -114,15 +115,20 @@ export class BKPeerAgent extends TypedEventEmitter
     public enqueue(resource: BKResource): boolean {
 
         if (this.isDownloading(resource)) {
-            console.warn();
             return false;
         }
 
         const entries = this._peers.values();
+
         for (let entry = entries.next(); !entry.done; entry = entries.next()) {
+
             const peer = entry.value;
-            if ((peer.getDownloadingSegmentId() == null) &&
-                    (peer.getSegmentsMap().get(resource.id) === BKResourceStatus.Loaded)) {
+
+            const resourceState = peer.getResourceMap().get(resource.id);
+
+            if ((peer.getOnoingTransmissionResourceId() === null)
+
+                && checkBKResourceStateLoaded(resourceState)) {
 
                 this._peerResourceTransfers.set(
                     resource.id,
@@ -132,7 +138,7 @@ export class BKPeerAgent extends TypedEventEmitter
                 resource.peerId = peer.id;
                 resource.peerShortName = peer.getShortName();
 
-                peer.sendSegmentRequest(resource.id);
+                peer.sendResourceRequest(resource.id);
 
                 return true;
             }
@@ -141,51 +147,56 @@ export class BKPeerAgent extends TypedEventEmitter
         return false;
     }
 
-    public abort(segment: BKResource): void {
-        const peerSegmentRequest = this._peerResourceTransfers.get(segment.id);
-        if (peerSegmentRequest) {
-            const peer = this._peers.get(peerSegmentRequest.peerId);
+    public abort(resource: BKResource): void {
+        const peerResourceRequest = this._peerResourceTransfers.get(resource.id);
+        if (peerResourceRequest) {
+            const peer = this._peers.get(peerResourceRequest.peerId);
             if (peer) {
-                peer.sendCancelSegmentRequest();
+                peer.sendResourceRequestAbort();
             }
-            this._peerResourceTransfers.delete(segment.id);
+            this._peerResourceTransfers.delete(resource.id);
         }
     }
 
-    public isDownloading(segment: BKResource): boolean {
-        return this._peerResourceTransfers.has(segment.id);
+    public isDownloading(resource: BKResource): boolean {
+        return this._peerResourceTransfers.has(resource.id);
     }
 
     public getActiveDownloadsCount(): number {
         return this._peerResourceTransfers.size;
     }
 
-    public sendSegmentsMapToAll(segmentsMap: BKResourceMapData): void {
+    public sendResourcesMapToAll(resourcesMap: BKResourceMapData): void {
 
         this.debug('sending chunk-map to all');
 
-        this._peers.forEach((peer) => peer.sendSegmentsMap(segmentsMap));
+        this._peers.forEach((peer) => peer.sendResourceMap(resourcesMap));
     }
 
-    public sendSegmentsMap(peerId: string, segmentsMap: BKResourceMapData): void {
+    public sendResourcesMap(peerId: string, resourcesMap: BKResourceMapData): void {
+
         const peer = this._peers.get(peerId);
+
         if (peer) {
-            peer.sendSegmentsMap(segmentsMap);
+            peer.sendResourceMap(resourcesMap);
         }
     }
 
-    public getOverallSegmentsMap(): Map<string, BKResourceStatus> {
-        const overallSegmentsMap: Map<string, BKResourceStatus> = new Map();
-        this._peers.forEach(peer => peer.getSegmentsMap().forEach((segmentStatus, segmentId) => {
-            if (segmentStatus === BKResourceStatus.Loaded) {
-                overallSegmentsMap.set(segmentId, BKResourceStatus.Loaded);
-            } else if (!overallSegmentsMap.get(segmentId)) {
-                overallSegmentsMap.set(segmentId, BKResourceStatus.LoadingViaHttp);
+    /*
+    public getOverallResourceMap(): BKResourceMap {
+        const overallSegmentsMap: BKResourceMap = BKResourceMap.create();
+
+        this._peers.forEach(peer => peer.getResourceMap().forEach((resourceState: BKResourceState, resourceId) => {
+            if (resourceState.status === BKResourceStatus.Loaded) {
+                overallSegmentsMap.set(resourceId, BKResourceStatus.Loaded);
+            } else if (!overallSegmentsMap.get(resourceId)) {
+                overallSegmentsMap.set(resourceId, BKResourceStatus.LoadingViaHttp);
             }
         }));
 
         return overallSegmentsMap;
     }
+    */
 
     public getPeerId(): string {
         return this._peerId;
@@ -355,32 +366,33 @@ export class BKPeerAgent extends TypedEventEmitter
     }
 
     private _onResourceRequest = (peer: BKPeer, resourceId: string) => {
-        const resource: BKResource = this.cachedSegments.get(resourceId);
+
+        const resource: BKResource = this.cachedResources.get(resourceId);
 
         this.emit('peer-request-received', resource, peer);
 
         if (resource) {
             // assert: that the resource objects are consistent
             if (!resource.data || resource.data.byteLength === 0) {
-                throw new Error('No data in segment: ' + resource.id)
+                throw new Error('No data in resource: ' + resource.id)
             }
-            peer.sendSegmentData(resourceId, resource.data);
+            peer.sendResourceData(resourceId, resource.data);
 
         } else {
             this.debug('request received for absent resource with id:', resourceId);
-            peer.sendSegmentAbsent(resourceId);
+            peer.sendResourceAbsent(resourceId);
         }
 
         this.emit('peer-response-sent', resource, peer);
     }
 
-    private _onResourceFetched = (peer: BKPeer, segmentId: string, data: ArrayBuffer) => {
+    private _onResourceFetched = (peer: BKPeer, resourceId: string, data: ArrayBuffer) => {
 
-        this.debug(`resource "${segmentId}" loaded from peer (id=${peer.id})`);
+        this.debug(`resource "${resourceId}" loaded from peer (id=${peer.id})`);
 
-        const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
+        const peerResourceRequest = this._peerResourceTransfers.get(resourceId);
         if (peerResourceRequest) {
-            this._peerResourceTransfers.delete(segmentId);
+            this._peerResourceTransfers.delete(resourceId);
 
             const res = peerResourceRequest.resource;
 
@@ -393,23 +405,23 @@ export class BKPeerAgent extends TypedEventEmitter
         }
     }
 
-    private _onResourceAbsent = (peer: BKPeer, segmentId: string) => {
-        this._peerResourceTransfers.delete(segmentId);
+    private _onResourceAbsent = (peer: BKPeer, resourceId: string) => {
+        this._peerResourceTransfers.delete(resourceId);
         this.emit('peer-data-updated');
     }
 
-    private _onResourceError = (peer: BKPeer, segmentId: string, description: string) => {
-        const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
+    private _onResourceError = (peer: BKPeer, resourceId: string, description: string) => {
+        const peerResourceRequest = this._peerResourceTransfers.get(resourceId);
         if (peerResourceRequest) {
-            this._peerResourceTransfers.delete(segmentId);
+            this._peerResourceTransfers.delete(resourceId);
             this.emit('resource-error', peer, peerResourceRequest.resource, description);
         }
     }
 
-    private _onResourceTimeout = (peer: BKPeer, segmentId: string) => {
-        const peerResourceRequest = this._peerResourceTransfers.get(segmentId);
+    private _onResourceTimeout = (peer: BKPeer, resourceId: string) => {
+        const peerResourceRequest = this._peerResourceTransfers.get(resourceId);
         if (peerResourceRequest) {
-            this._peerResourceTransfers.delete(segmentId);
+            this._peerResourceTransfers.delete(resourceId);
             peer.destroy();
             if (this._peers.delete(peerResourceRequest.peerId)) {
                 this.emit('peer-data-updated');
