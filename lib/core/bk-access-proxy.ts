@@ -36,19 +36,27 @@ const getBrowserRtc = require('get-browser-rtc');
  * Defines external interface of access-proxy
  */
 export interface BK_IProxy {
+
     on(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
     once(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
     off(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
+
     enqueue(resource: BKResource): void;
     abort(resource: BKResource): void;
+
     terminate(): void;
     getSwarmId();
     setSwarmId(swarmId: string);
     getPeerId(): string;
+
     getPeerConnections(): BKPeer[];
+
     getWRTCConfig(): RTCConfiguration;
+
     readonly settings: BKAccessProxySettings;
 }
+
+export type BKResourceCacheMap = Map<string, BKResource>;
 
 /**
  * @class
@@ -65,8 +73,11 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     private debug = Debug('bk:core:access-proxy');
 
     private _httpDownloader: HttpDownloadQueue;
+
     private _peerAgent: BKPeerAgent;
-    private _storedResources: Map<string, BKResource> = new Map();
+
+    private _cachedResources: BKResourceCacheMap = new Map();
+
     private _bandwidthEstimator = new BandwidthEstimator();
 
     public constructor(settings: Partial<BKAccessProxySettings> = {}) {
@@ -82,7 +93,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
         //this._httpDownloader.on('bytes-downloaded', (bytes: number) => this.onChunkBytesDownloaded('http', bytes));
 
-        this._peerAgent = new BKPeerAgent(this._storedResources, this.settings);
+        this._peerAgent = new BKPeerAgent(this._cachedResources, this.settings);
 
         this._peerAgent.on('resource-fetched', this.onResourceLoaded.bind(this));
         this._peerAgent.on('resource-error', this.onResourceError.bind(this));
@@ -147,16 +158,24 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         return this._peerAgent.getPeerConnections();
     }
 
+    public getCachedResources(): BKResourceCacheMap {
+        return this._cachedResources;
+    }
+
+    public getOwnCurrentResourcesMapData(): BKResourceMapData {
+        return this._createResourcesMap();
+    }
+
     public terminate(): void {
         this._httpDownloader.destroy();
         this._peerAgent.destroy();
-        this._storedResources.clear();
+        this._cachedResources.clear();
     }
 
     private _createResourcesMap(): BKResourceMapData {
         const resourcesMap: BKResourceMapData = [];
 
-        this._storedResources.forEach((res: BKResource) => {
+        this._cachedResources.forEach((res: BKResource) => {
             resourcesMap.push(
                 [res.id, createBKResourceState(res.requestedBytesLoaded, res.requestedBytesTotal)]
             );
@@ -188,7 +207,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
             throw new Error('No data in resource loaded')
         }
 
-        this._storedResources.set(resource.id, resource);
+        this._cachedResources.set(resource.id, resource);
 
         resource.lastAccessedAt = getPerfNow();
 

@@ -18,6 +18,7 @@ export class BKResourceBlob {
         }
 
         const partsRanges: ByteRange[] = numParts > 1 ? byteRange.split(numParts) : [byteRange];
+
         this._parts = partsRanges.map((range) => new BKResource(resourceUri, range));
     }
 
