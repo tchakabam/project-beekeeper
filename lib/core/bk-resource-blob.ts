@@ -1,23 +1,38 @@
 import { BKResource } from "./bk-resource";
 import { copyArrayBuffers } from "../../ext-mod/emliri-es-libs/rialto/lib/array-buffer-utils";
+import { ByteRange } from "../../ext-mod/emliri-es-libs/rialto/lib/byte-range";
 
 export class BKResourceBlob {
-    parts: BKResource[];
 
     private _data: ArrayBuffer = null;
+    private _parts: BKResource[] = [];
+
+    constructor(
+        public readonly resourceUri: string,
+        public readonly numParts: number = 1,
+        public readonly byteRange: ByteRange
+    ) {
+
+        if (numParts === 0) {
+            throw new Error('Blob must have at least one part');
+        }
+
+        const partsRanges: ByteRange[] = numParts > 1 ? byteRange.split(numParts) : [byteRange];
+        this._parts = partsRanges.map((range) => new BKResource(resourceUri, range));
+    }
 
     /**
      * @returns true when all parts completed loading
      */
     isCompleted(): boolean {
-        return this.parts.every((part) => part.hasData);
+        return this._parts.every((part) => part.hasData);
     }
 
     /**
      * @returns amount of bytes loaded from all parts. safe to call any time
      */
     getLoadedBytes(): number {
-        return this.parts.reduce((bytes, part) => bytes + (part.data ? part.data.byteLength : 0), 0);
+        return this._parts.reduce((bytes, part) => bytes + (part.data ? part.data.byteLength : 0), 0);
     }
 
     /**
@@ -33,7 +48,7 @@ export class BKResourceBlob {
      * @throws when not all buffers are present yet (not completed)
      */
     getDataParts(): ArrayBuffer[] {
-        return this.parts.map((part) => {
+        return this._parts.map((part) => {
             if (!part.data) {
                 throw new Error('Can not get part of resource data with id: '
                     + part.id + ' and range: ' + part.byteRange.toString());

@@ -1,4 +1,5 @@
 import { Resource } from '../../ext-mod/emliri-es-libs/rialto/lib/resource';
+import { ByteRange } from '../../ext-mod/emliri-es-libs/rialto/lib/byte-range';
 
 export enum BKResourceTransportMode {
     UNKNOWN = 'unknown',
@@ -7,6 +8,11 @@ export enum BKResourceTransportMode {
 }
 
 export class BKResource extends Resource {
+
+    constructor(uri: string, byteRange?: ByteRange) {
+        super(uri, byteRange);
+    }
+
     /**
      * (Bittorrent) P2P Swarm-ID this resource is to be found on
      */

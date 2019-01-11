@@ -21,111 +21,20 @@ import {HttpDownloadQueue} from './http-download-queue';
 import {BKPeerAgent} from './peer-agent';
 import {BandwidthEstimator} from './bandwidth-estimator';
 
-import { PeerTransportFilterFactory, DefaultPeerTransportFilter } from './peer-transport';
-
 import { BKResource, BKResourceTransportMode } from './bk-resource';
 
 import { getPerfNow } from './perf-now';
 import { BKPeer } from './peer';
 import { BKResourceMapData, createBKResourceState } from './bk-resource-map';
+import { BKAccessProxySettings, defaultSettings } from './bk-access-proxy-settings';
+import { BKAccessProxyEvents } from './bk-access-proxy-events';
 
 const getBrowserRtc = require('get-browser-rtc');
 
-const rtcDefaultConfig: RTCConfiguration = require('simple-peer').config;
-
-const trackerDefaultAnounce = [
-    'wss://tracker.btorrent.xyz/',
-    'wss://tracker.openwebtorrent.com/'
-];
-
-export type BKAccessProxySettings = {
-    /**
-     * Max WebRTC message size. 64KiB - 1B should work with most of recent browsers. Set it to 16KiB for older browsers support.
-     */
-    webRtcMaxMessageSize: number;
-
-    /**
-     * Timeout to download a resource from a peer. If exceeded the peer is dropped.
-     */
-    p2pResourceTransmissionTimeout: number;
-
-    /**
-     * Torrent trackers (announcers) to use.
-     */
-    trackerAnnounce: string[];
-
-    /**
-     * An RTCConfiguration dictionary providing options to configure WebRTC connections.
-     */
-    rtcConfig: RTCConfiguration;
-
-    /**
-     * Inject a factory function to create own transport interface implementation
-     * based on initial transport object create by ITrackerClient.
-     *
-     * Default: just returns the initial transport.
-     */
-    mediaPeerTransportFilterFactory: PeerTransportFilterFactory
-};
-
-export type BKOptAccessProxySettings = Partial<BKAccessProxySettings>;
-
-export const defaultSettings: BKAccessProxySettings = {
-
-    webRtcMaxMessageSize: 64 * 1024 - 1, // 64Kbytes (why the -1 ?)
-
-    p2pResourceTransmissionTimeout: 60000,
-
-    trackerAnnounce: trackerDefaultAnounce,
-
-    rtcConfig: rtcDefaultConfig,
-
-    //mediaPeerTransportFilterFactory: (transport) => transport
-    mediaPeerTransportFilterFactory: (transport) => new DefaultPeerTransportFilter(transport)
-};
-
-export enum BKAccessProxyEvents {
-    ResourceRequested = 'resource:requested',
-
-    ResourceEnqueuedHttp = 'resource:enqueued:http',
-
-    ResourceEnqueuedP2p = 'resource:enqueued:p2p',
-
-    /**
-     * Emitted when resource has been downloaded.
-     * Args: resource
-     */
-    ResourceFetched = 'resource:fetched',
-
-    /**
-     * Emitted when an error occurred while loading the resource.
-     * Args: resource, error
-     */
-    ResourceError = 'resource:error',
-
-    /**
-     * Emitted for each resource that does not hit into a new resources queue when the load() method is called.
-     * Args: resource
-     */
-    ResourceAbort = 'resource:abort',
-
-    /**
-     * Emitted when a peer is connected.
-     * Args: peer
-     */
-    PeerConnect = 'peer:connect',
-
-    /**
-     * Emitted when a peer is disconnected.
-     * Args: peerId
-     */
-    PeerClose = 'peer:close',
-
-    PeerRequestReceived = 'peer:request',
-
-    PeerResponseSent = 'peer:response-sent',
-}
-
+/**
+ * @interface
+ * Defines external interface of access-proxy
+ */
 export interface BK_IProxy {
     on(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
     once(event: string | symbol, listener: (...args: any[]) => void): BK_IProxy;
@@ -141,6 +50,9 @@ export interface BK_IProxy {
     readonly settings: BKAccessProxySettings;
 }
 
+/**
+ * @class
+ */
 export class BKAccessProxy extends EventEmitter implements BK_IProxy {
 
     public static isSupported(): boolean {
@@ -148,8 +60,9 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
         return (browserRtc && (browserRtc.RTCPeerConnection.prototype.createDataChannel !== undefined));
     }
 
-    readonly debug = Debug('bk:core:access-proxy');
     readonly settings: BKAccessProxySettings;
+
+    private debug = Debug('bk:core:access-proxy');
 
     private _httpDownloader: HttpDownloadQueue;
     private _peerAgent: BKPeerAgent;
@@ -184,6 +97,7 @@ export class BKAccessProxy extends EventEmitter implements BK_IProxy {
     }
 
     public enqueue(resource: BKResource): void {
+
         this.debug('enqueueing:', resource.getUrl());
 
         this.emit(BKAccessProxyEvents.ResourceRequested, resource);
