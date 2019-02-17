@@ -1,7 +1,8 @@
 import * as Debug from 'debug';
 
 import { IResourceRequest, ResourceRequestOptions, ResourceRequestCallback } from '../../ext-mod/emliri-es-libs/rialto/lib/resource-request';
-import { XHRState, XHRData, XHR, XHRResponseType } from '../../ext-mod/emliri-es-libs/rialto/lib/xhr';
+import { XHRState, XHRData, XHRResponseType } from '../../ext-mod/emliri-es-libs/rialto/lib/xhr';
+
 import { getPerfNow } from '../core/perf-now';
 import { BKResource, BK_IProxy, BKProxyEvents } from '../core';
 
@@ -28,7 +29,6 @@ export class BKResourceRequest implements IResourceRequest {
     secondsUntilHeaders: number = NaN;
 
     private _resource: BKResource;
-
     private _resourceRequestCallback: ResourceRequestCallback;
     private _wasSuccessful: boolean = false;
     private _requestCreated: number = null;
@@ -103,13 +103,13 @@ export class BKResourceRequest implements IResourceRequest {
         this.totalBytes = res.data.byteLength;
         this.responseData = res.data;
 
-        debug(`segment loaded: ${this.url}`, res.getUrl());
+        debug(`resource loaded: ${this.url}`, res.getUrl());
 
         this._invokeRequestCallback();
     }
 
-    private onResourceError(segment: BKResource, err: Error) {
-        if (segment.id !== this._resource.id) {
+    private onResourceError(resource: BKResource, err: Error) {
+        if (resource.id !== this._resource.id) {
             return;
         }
 
@@ -117,11 +117,11 @@ export class BKResourceRequest implements IResourceRequest {
             return;
         }
 
-        debug(`segment error: ${this.url}`);
+        debug(`resource error: ${this.url}`);
     }
 
-    private onResourceAbort(segment: BKResource) {
-        if (segment.id !== this._resource.id) {
+    private onResourceAbort(resource: BKResource) {
+        if (resource.id !== this._resource.id) {
             return;
         }
 
@@ -129,7 +129,7 @@ export class BKResourceRequest implements IResourceRequest {
             return;
         }
 
-        debug(`segment aborted: ${this.url}`);
+        debug(`resource aborted: ${this.url}`);
 
         this.hasBeenAborted = true;
     }

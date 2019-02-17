@@ -3,37 +3,39 @@ import { TypedEventEmitter } from './typed-event-emitter';
 import {NetworkChannelEmulator} from './network-channel-emulator';
 
 import * as Debug from 'debug';
-import { BKResourceMapData } from './bk-resource';
+
+import { BKResourceMapData } from './bk-resource-map';
 
 import { utf8BytesToString } from '../../ext-mod/emliri-es-libs/rialto/lib/bytes-read-write';
 
 const debug = Debug('bk:core:peer-transport');
 
 export enum PeerCommandType {
-    SegmentData = 'segment_data',
-    SegmentAbsent = 'segment_absent',
-    SegmentsMap = 'segments_map',
-    SegmentRequest = 'segment_request',
-    CancelSegmentRequest = 'cancel_segment_request',
+    ResourceData = 'resource-data',
+    ResourceAbsent = 'resource-absent',
+    ResourceMap = 'resource-map',
+    ResourceRequest = 'resource-request',
+    ResourceRequestAbort = 'resource-request-abort',
 }
 
-export type PeerTransportCommand = {
+export type PeerResponseData = {
     type: PeerCommandType
-    segment_id?: string
-    segment_size?: number
-    segments?: BKResourceMapData
+    resource_id?: string
+    resource_size?: number
+    map?: BKResourceMapData
 };
 
 // TODO: marshall parsed data
-export function decodeMediaPeerTransportCommand(data: ArrayBuffer): PeerTransportCommand | null {
+export function decodePeerResponseData(data: ArrayBuffer): PeerResponseData | null {
     const bytes = new Uint8Array(data);
     // Serialized JSON string check by first, second and last characters: '{" .... }'
     if (bytes[0] == 123 && bytes[1] == 34 && bytes[data.byteLength - 1] == 125) {
         try {
             return JSON.parse(utf8BytesToString(bytes));
-            // BROKEN: doesn't work in Node, this does ^
+            // BROKEN: line below doesn't work in Node, this above does ^
             //return JSON.parse(new TextDecoder('utf-8').decode(data));
         } catch(err) {
+            // ignoring any errors as this is how we basically do check JSON vs binary data, aarg :D
             //console.error(err);
             //throw new Error('Failed to decode message: ' + err.message)
         }

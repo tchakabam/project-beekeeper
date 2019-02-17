@@ -6,7 +6,7 @@ declare var process: any
 
 require('./node-shims');
 
-import * as BeekeeprHeadlessAgentNode from '../build/BeekeeprHeadlessAgentNode.umd';
+import * as BeekeeprHeadlessAgentNode from '../lib/headless-agent'
 
 const {BKAccessProxyEvents, Engine} = BeekeeprHeadlessAgentNode;
 

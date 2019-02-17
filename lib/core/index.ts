@@ -23,17 +23,23 @@ if (global && !(window as any).XMLHttpRequest) {
 }
 
 export {
-    BKAccessProxy,
     BKAccessProxyEvents,
-    BKAccessProxySettings,
-    BKOptAccessProxySettings,
-    BK_IProxy,
     BKAccessProxyEvents as BKProxyEvents
+} from './bk-access-proxy-events'
+
+export {
+    BKAccessProxySettings,
+    BKOptAccessProxySettings
+} from './bk-access-proxy-settings';
+
+export {
+    BKAccessProxy,
+    BK_IProxy
 } from './bk-access-proxy';
 
 export {BKResource} from './bk-resource';
 
-export * from './utils';
+export {parseOptionsFromQueryString} from './browser-query-string';
 
 export const version =  !global ? __VERSION__ : '';
 

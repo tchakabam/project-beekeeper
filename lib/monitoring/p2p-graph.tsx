@@ -2,7 +2,8 @@
 
 import P2pGraph = require("p2p-graph");
 
-import { BK_IProxy, BKAccessProxyEvents } from "../core/bk-access-proxy";
+import { BK_IProxy } from "../core/bk-access-proxy";
+import { BKAccessProxyEvents } from "../core/bk-access-proxy-events";
 
 export function createP2pGraph(elRoot: HTMLElement, proxy: BK_IProxy): {graph: P2pGraph, updateInterval: number} {
     const g: P2pGraph = new P2pGraph(elRoot);

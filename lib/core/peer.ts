@@ -17,18 +17,23 @@
 import * as Debug from 'debug';
 
 import {TypedEventEmitter} from './typed-event-emitter';
-import { detectSafari11_0 } from './detect-safari-11';
+import { detectSafari11_0 } from './browser-detect-safari-11';
 
-import { IPeerTransport, PeerCommandType, PeerTransportCommand, decodeMediaPeerTransportCommand } from './peer-transport';
+import { IPeerTransport, PeerCommandType, PeerResponseData, decodePeerResponseData } from './peer-transport';
 
-import { BKResourceMap, BKResourceStatus, BKResourceMapData } from './bk-resource';
+import { BKResourceMap, BKResourceMapData } from './bk-resource-map';
+import { copyArrayBuffers } from '../../ext-mod/emliri-es-libs/rialto/lib/array-buffer-utils';
 
 // TODO: Make this ResourceRequest
 class PeerDataTransmission {
-    public bytesDownloaded = 0;
-    public chunks: ArrayBuffer[] = [];
 
-    constructor(readonly id: string, readonly size: number) {}
+    public resourceDataChunks: ArrayBuffer[] = [];
+
+    public loadedBytes = 0;
+
+    constructor(
+        readonly resourceId: string,
+        readonly totalBytes: number) {}
 }
 
 export type PeerInfo = {
@@ -36,29 +41,31 @@ export type PeerInfo = {
     remoteAddress: string
 };
 
-export class BKPeer extends TypedEventEmitter<
+export class BKPeer extends TypedEventEmitter
+    <
     // TODO: make proper enum for these events
     "connect" | "close" | "data-updated" |
     "resource-request" | "resource-absent" | "resource-fetched" | "resource-error" | "resource-timeout" |
     "bytes-downloaded" | "bytes-uploaded"
-    > {
+    >
+{
 
     private _id: string;
     private _remoteAddress: string = null;
 
     private debug = Debug('bk:core:peer');
 
-    private _downloadingSegmentId: string | null = null;
-    private _downloadingSegment: PeerDataTransmission | null = null;
+    private _ongoingTransmissionResourceId: string | null = null;
+    private _ongoingTransmission: PeerDataTransmission | null = null;
 
-    private _segmentsMap: BKResourceMap = BKResourceMap.create();
+    private _resourceMap: BKResourceMap = BKResourceMap.create();
     private _timer: number | null = null;
     private _isSafari11_0: boolean = false;
 
     constructor(
             private readonly _peerTransport: IPeerTransport,
             readonly settings: {
-            p2pSegmentDownloadTimeout: number,
+            p2pResourceTransmissionTimeout: number,
             webRtcMaxMessageSize: number
             }) {
         super();
@@ -95,27 +102,27 @@ export class BKPeer extends TypedEventEmitter<
 
     public destroy(): void {
         this.debug(`destroying local handle for remote peer (id='${this._id}') -> ciao bella :)`);
-        this._terminateSegmentRequest();
+        this._terminateResourceRequest();
         this._peerTransport.destroy();
     }
 
-    public getDownloadingSegmentId(): string | null {
-        return this._downloadingSegmentId;
+    public getOnoingTransmissionResourceId(): string | null {
+        return this._ongoingTransmissionResourceId;
     }
 
-    public getSegmentsMap(): Map<string, BKResourceStatus> {
-        return this._segmentsMap;
+    public getResourceMap(): BKResourceMap {
+        return this._resourceMap;
     }
 
-    public sendSegmentsMap(segments: BKResourceMapData): void {
-        this._sendCommand({'type': PeerCommandType.SegmentsMap, 'segments': segments});
+    public sendResourceMap(mapData: BKResourceMapData): void {
+        this._sendCommand({type: PeerCommandType.ResourceMap, map: mapData});
     }
 
-    public sendSegmentData(segmentId: string, data: ArrayBuffer): void {
+    public sendResourceData(resourceId: string, data: ArrayBuffer): void {
         this._sendCommand({
-            type: PeerCommandType.SegmentData,
-            segment_id: segmentId,
-            segment_size: data.byteLength
+            type: PeerCommandType.ResourceData,
+            resource_id: resourceId,
+            resource_size: data.byteLength
         });
 
         let bytesLeft = data.byteLength;
@@ -136,25 +143,25 @@ export class BKPeer extends TypedEventEmitter<
         this.emit('bytes-uploaded', data.byteLength);
     }
 
-    public sendSegmentAbsent(segmentId: string): void {
-        this._sendCommand({type: PeerCommandType.SegmentAbsent, segment_id: segmentId});
+    public sendResourceAbsent(resourceId: string): void {
+        this._sendCommand({type: PeerCommandType.ResourceAbsent, resource_id: resourceId});
     }
 
-    public sendSegmentRequest(segmentId: string): void {
-        if (this._downloadingSegmentId) {
-            throw new Error('A segment is already downloading: ' + this._downloadingSegmentId);
+    public sendResourceRequest(resourceId: string): void {
+        if (this._ongoingTransmissionResourceId) {
+            throw new Error('A resource is already downloading: ' + this._ongoingTransmissionResourceId);
         }
 
-        this._sendCommand({type: PeerCommandType.SegmentRequest, segment_id: segmentId});
-        this._downloadingSegmentId = segmentId;
+        this._sendCommand({type: PeerCommandType.ResourceRequest, resource_id: resourceId});
+        this._ongoingTransmissionResourceId = resourceId;
         this._scheduleResponseTimeout();
     }
 
-    public sendCancelSegmentRequest(): void {
-        if (this._downloadingSegmentId) {
-            const segmentId = this._downloadingSegmentId;
-            this._terminateSegmentRequest();
-            this._sendCommand({type: PeerCommandType.CancelSegmentRequest, segment_id: segmentId});
+    public sendResourceRequestAbort(): void {
+        if (this._ongoingTransmissionResourceId) {
+            const resourceId = this._ongoingTransmissionResourceId;
+            this._terminateResourceRequest();
+            this._sendCommand({type: PeerCommandType.ResourceRequestAbort, resource_id: resourceId});
         }
     }
 
@@ -162,7 +169,7 @@ export class BKPeer extends TypedEventEmitter<
         return this._peerTransport;
     }
 
-    private _sendCommand(command: PeerTransportCommand): void {
+    private _sendCommand(command: PeerResponseData): void {
         this.debug(`sending command "${command.type}" to remote peer (id='${this._id}') `);
         this._peerTransport.write(JSON.stringify(command));
     }
@@ -170,13 +177,13 @@ export class BKPeer extends TypedEventEmitter<
     private _scheduleResponseTimeout(): void {
         this._timer = window.setTimeout(() => {
             this._timer = null;
-            if (!this._downloadingSegmentId) {
+            if (!this._ongoingTransmissionResourceId) {
                 return;
             }
-            const segmentId = this._downloadingSegmentId;
-            this.sendCancelSegmentRequest();
-            this.emit('resource-timeout', this, segmentId); // TODO: send peer not responding event
-        }, this.settings.p2pSegmentDownloadTimeout);
+            const resourceId = this._ongoingTransmissionResourceId;
+            this.sendResourceRequestAbort();
+            this.emit('resource-timeout', this, resourceId); // TODO: send peer not responding event
+        }, this.settings.p2pResourceTransmissionTimeout);
     }
 
     private _cancelResponseTimeout(): void {
@@ -186,19 +193,19 @@ export class BKPeer extends TypedEventEmitter<
         }
     }
 
-    private _terminateSegmentRequest() {
-        this._downloadingSegmentId = null;
-        this._downloadingSegment = null;
+    private _terminateResourceRequest() {
+        this._ongoingTransmissionResourceId = null;
+        this._ongoingTransmission = null;
         this._cancelResponseTimeout();
     }
 
-    private _handleSegmentChunk(data: ArrayBuffer): void {
+    private _handleResourceDataReceived(data: ArrayBuffer): void {
 
         this.debug(`received resource data from remote peer (id='${this._id}')`);
 
-        if (!this._downloadingSegment) {
-            // The segment was not requested or canceled
-            this.debug(`received data from remote peer (id='${this._id}') for non-requested or canceled segment :(`);
+        if (!this._ongoingTransmission) {
+            // The resource was not requested or canceled
+            this.debug(`received data from remote peer (id='${this._id}') for non-requested or aborted resource transmission :(`);
             //return;
 
             console.log(data);
@@ -206,30 +213,31 @@ export class BKPeer extends TypedEventEmitter<
             throw new Error('Runtime self-check failed: unexpected data received from peer')
         }
 
-        this._downloadingSegment.bytesDownloaded += data.byteLength;
-        this._downloadingSegment.chunks.push(data);
+        this._ongoingTransmission.loadedBytes += data.byteLength;
+        this._ongoingTransmission.resourceDataChunks.push(data);
         this.emit('bytes-downloaded', data.byteLength);
 
-        const segmentId = this._downloadingSegment.id;
+        const resourceId = this._ongoingTransmission.resourceId;
 
-        if (this._downloadingSegment.bytesDownloaded == this._downloadingSegment.size) {
-            const segmentData = new Uint8Array(this._downloadingSegment.size);
-            let offset = 0;
-            for (const chunk of this._downloadingSegment.chunks) {
-                segmentData.set(new Uint8Array(chunk), offset);
-                offset += chunk.byteLength;
-            }
+        if (this._ongoingTransmission.loadedBytes == this._ongoingTransmission.totalBytes) {
 
-            this.debug('peer resource transfer done', this._id, segmentId);
-            this._terminateSegmentRequest();
-            this.emit('resource-fetched', this, segmentId, segmentData.buffer);
-        } else if (this._downloadingSegment.bytesDownloaded > this._downloadingSegment.size) {
-            this.debug(`remote peer (id='${this._id}'): transferred resource bytes mismatch!!!`, segmentId);
+            const resourceDataBuf = copyArrayBuffers(this._ongoingTransmission.resourceDataChunks,
+                new Uint8Array(this._ongoingTransmission.totalBytes).buffer);
+
+            this.debug('peer resource transfer done', this._id, resourceId);
+
+            this._terminateResourceRequest();
+
+            this.emit('resource-fetched', this, resourceId, resourceDataBuf);
+
+        } else if (this._ongoingTransmission.loadedBytes > this._ongoingTransmission.totalBytes) {
+
+            this.debug(`remote peer (id='${this._id}'): transferred resource bytes mismatch!!!`, resourceId);
 
             console.error('There was a fatal peer transaction error :(');
 
-            this._terminateSegmentRequest();
-            this.emit('resource-error', this, segmentId, 'Too many bytes received for segment');
+            this._terminateResourceRequest();
+            this.emit('resource-error', this, resourceId, 'Too many bytes received for resource');
         }
     }
 
@@ -246,55 +254,55 @@ export class BKPeer extends TypedEventEmitter<
             throw new Error('Assertion failed: data not an ArrayBuffer');
         }
 
-        const command = decodeMediaPeerTransportCommand(data);
-        if (!command) {
-            this._handleSegmentChunk(data);
+        const peerResponse = decodePeerResponseData(data);
+        if (!peerResponse) {
+            this._handleResourceDataReceived(data);
             return;
         }
 
-        if (this._downloadingSegment) {
-            this.debug('peer segment download is interrupted by a command, peer-id:', this._id);
+        if (this._ongoingTransmission) {
+            this.debug('peer resource download is interrupted by a command, peer-id:', this._id);
 
-            const segmentId = this._downloadingSegment.id;
-            this._terminateSegmentRequest();
-            this.emit('resource-error', this, segmentId, 'Segment download is interrupted by a command');
+            const resourceId = this._ongoingTransmission.resourceId;
+            this._terminateResourceRequest();
+            this.emit('resource-error', this, resourceId, 'Resource download is interrupted by a command');
             return;
         }
 
-        this.debug('peer receive command, peer-id:', this._id,'type:', command.type);
+        this.debug('peer receive command, peer-id:', this._id,'type:', peerResponse.type);
 
-        switch (command.type) {
-        case PeerCommandType.SegmentsMap:
-            if (!command.segments) {
-                throw new Error('No `segments` found in data');
+        switch (peerResponse.type) {
+        case PeerCommandType.ResourceMap:
+            if (!peerResponse.map) {
+                throw new Error('No `map` property found in parsed data');
             }
-            this._segmentsMap = BKResourceMap.create(command.segments);
+            this._resourceMap = BKResourceMap.create(peerResponse.map);
             this.emit('data-updated');
             break;
 
-        case PeerCommandType.SegmentRequest:
-            this.emit('resource-request', this, command.segment_id);
+        case PeerCommandType.ResourceRequest:
+            this.emit('resource-request', this, peerResponse.resource_id);
             break;
 
-        case PeerCommandType.SegmentData:
-            if (this._downloadingSegmentId === command.segment_id) {
-                if (!command.segment_size) {
-                    throw new Error('No `segment_size` found in data');
+        case PeerCommandType.ResourceData:
+            if (this._ongoingTransmissionResourceId === peerResponse.resource_id) {
+                if (!peerResponse.resource_size) {
+                    throw new Error('No `resource_size` found in data');
                 }
-                this._downloadingSegment = new PeerDataTransmission(command.segment_id, command.segment_size);
+                this._ongoingTransmission = new PeerDataTransmission(peerResponse.resource_id, peerResponse.resource_size);
                 this._cancelResponseTimeout();
             }
             break;
 
-        case PeerCommandType.SegmentAbsent:
-            if (this._downloadingSegmentId === command.segment_id) {
-                this._terminateSegmentRequest();
-                this._segmentsMap.delete(command.segment_id);
-                this.emit('resource-absent', this, command.segment_id);
+        case PeerCommandType.ResourceAbsent:
+            if (this._ongoingTransmissionResourceId === peerResponse.resource_id) {
+                this._terminateResourceRequest();
+                this._resourceMap.delete(peerResponse.resource_id);
+                this.emit('resource-absent', this, peerResponse.resource_id);
             }
             break;
 
-        case PeerCommandType.CancelSegmentRequest:
+        case PeerCommandType.ResourceRequestAbort:
             // TODO: peer stop sending buffer
             break;
 
@@ -311,7 +319,7 @@ export class BKPeer extends TypedEventEmitter<
 
     private _onPeerClose(): void {
         this.debug(`remote peer (id='${this._id}') connection closed`);
-        this._terminateSegmentRequest();
+        this._terminateResourceRequest();
         this.emit('close', this);
     }
 }
